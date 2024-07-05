@@ -8,3 +8,5 @@ foo.*
 data
 .nvim
 .maven
+lazy-lock.json
+lazyvim.json
