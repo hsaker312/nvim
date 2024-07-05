@@ -65,109 +65,6 @@ local delete_selected = function()
         end
     end)
 end
---
--- local surround_selected = function(open, close)
---     local isVisualMode = vim.fn.mode():find("[Vv]")
---     if not isVisualMode then
---         return
---     end
---
---     local line_start = vim.fn.line("v")
---     local line_end = vim.fn.line(".")
---     local col_start = vim.fn.col("v")
---     local col_end = vim.fn.col(".")
---
---     if line_start > line_end then
---         local temp = line_start
---         line_start = line_end
---         line_end = temp
---
---         temp = col_start
---         col_start = col_end
---         col_end = temp
---     elseif line_start == line_end and col_start > col_end then
---         local temp = col_start
---         col_start = col_end
---         col_end = temp
---     end
---
---     vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_start, col_start - 1 })
---
---     if open == "<" then
---         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>i" .. open, true, true, true), "", true)
---     else
---         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>i" .. open .. "<Del>", true, true, true), "", true)
---     end
---
---     vim.defer_fn(function()
---         vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_end, col_end })
---
---         vim.defer_fn(function()
---             local lastLine = vim.fn.getline(line_end)
---             local lastLineLen = #lastLine
---             local chars = ""
---
---             vim.defer_fn(function()
---                 vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<right>" .. close, true, true, true), "", true)
---
---                 vim.defer_fn(function()
---                     local i = 2
---
---                     while lastLineLen >= col_end + i do
---                         local char = lastLine:sub(col_end + i, col_end + i)
---
---                         if close == char and char ~= ">" then
---                             chars = chars .. close
---                         else
---                             break
---                         end
---
---                         i = i + 1
---                     end
---
---                     vim.defer_fn(function()
---                         vim.api.nvim_feedkeys(chars, "", true)
---
---                         vim.defer_fn(function()
---                             if close == open then
---                                 vim.api.nvim_feedkeys(
---                                     vim.api.nvim_replace_termcodes("<Del><esc>", true, true, true),
---                                     "",
---                                     true
---                                 )
---                             else
---                                 vim.api.nvim_feedkeys(
---                                     vim.api.nvim_replace_termcodes("<esc>", true, true, true),
---                                     "",
---                                     true
---                                 )
---                             end
---
---                             vim.defer_fn(function()
---                                 vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_start, col_start })
---                                 vim.api.nvim_command("normal! v")
---
---                                 if close == open then
---                                     if line_start ~= line_end then
---                                         vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_end, col_end })
---                                     else
---                                         vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_end, col_end + 1 })
---                                     end
---                                 else
---                                     if line_start ~= line_end then
---                                         vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_end, col_end - 1 })
---                                     else
---                                         vim.api.nvim_win_set_cursor(vim.fn.win_getid(), { line_end, col_end })
---                                     end
---                                 end
---                             end, 10)
---                         end, 10)
---                     end, 10)
---                 end, 10)
---             end, 10)
---         end, 10)
---     end, 10)
--- end
 
 local surround_selected = function(open, close)
     local isVisualMode = vim.fn.mode():find("[Vv]")
@@ -206,10 +103,11 @@ local paste = function(reg)
         reg = "+"
     end
 
-    local _, cs, le, ce = get_ls_cs_le_ce()
-    local lines = vim.fn.getreg(reg)
+    local ls, cs, le, ce = get_ls_cs_le_ce()
+    local lines = vim.fn.getreg(reg) .. "\n"
     local lines_count = 0
     local last_line_len = 0
+    local empty_line = #vim.fn.getline(ls) == 0
 
     for line in lines:gmatch("[^\n]*\n") do
         lines_count = lines_count + 1
@@ -222,6 +120,10 @@ local paste = function(reg)
         if cs == 1 then
             vim.api.nvim_command("normal! P")
             vim.api.nvim_command("normal! l")
+
+            if empty_line then
+                vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<right>", true, true, true), "", true)
+            end
         elseif ce > #vim.fn.getline(le) then
             vim.api.nvim_command("normal! p")
             vim.api.nvim_command("startinsert!")
@@ -237,10 +139,12 @@ local paste = function(reg)
         end
 
         vim.api.nvim_command(
-            "call cursor(" .. tostring(le + lines_count + 1) .. "," .. tostring(last_line_len + 1) .. ")"
+            "call cursor(" .. tostring(le + lines_count) .. "," .. tostring(last_line_len) .. ")"
         )
     end
 end
+
+vim.keymap.set("n", "V", "0v$h", { noremap = true, silent = true, desc = "Paste" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 
@@ -253,6 +157,7 @@ vim.keymap.set("v", "<C-c>", '"+y<esc>gv', { noremap = true, silent = true, desc
 
 vim.keymap.set("n", "<C-v>", function()
     local col_num = vim.fn.col(".")
+    local line_num = vim.fn.line(".")
 
     vim.api.nvim_command("startinsert")
 
@@ -264,6 +169,7 @@ vim.keymap.set("n", "<C-v>", function()
 end, { noremap = true, silent = true, desc = "Paste" })
 
 vim.keymap.set("i", "<C-v>", paste, { noremap = true, silent = true, desc = "Paste" })
+
 vim.keymap.set("v", "<C-v>", function()
     delete_selected()
     vim.schedule(paste)
@@ -735,5 +641,3 @@ vim.keymap.set("n", "<esc>", function()
     Pasting = false
     vim.api.nvim_command("nohlsearch")
 end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
-
-
