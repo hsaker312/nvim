@@ -487,6 +487,31 @@ local function error_project_entry(pom_file, refresh_project_info, error)
     Importer.Pom_File_Error[pom_file] = error
 end
 
+local function linearizeTable(t)
+    local result = {}
+
+    local function traverse(subtable, current_key)
+        for key, value in pairs(subtable) do
+            local new_key = ""
+
+            if current_key == "" then
+                new_key = key
+            else
+                new_key = current_key .. "." .. key
+            end
+
+            if type(value) == "table" then
+                traverse(value, new_key)
+            else
+                result[new_key] = value
+            end
+        end
+    end
+
+    traverse(t, "")
+    return result
+end
+require("diagnostics-details")
 ---comment
 ---@param xml any
 ---@param str string
@@ -499,10 +524,16 @@ local function substitute(xml, str)
     local res = str
 
     for var in str:gmatch("%${(.-)}") do
-        local value = xml.root.project[var:gsub("project.", "")]
+        -- local value = xml.root.project[var:gsub("project.", "")]
+        --
+        --        -- if value == nil and type(xml.root.project.properties) == "table" then
+        --     value = xml.root.project.properties[var:gsub("project%.", ""):gsub("properties%.", "")]
+        -- end
 
-        if value == nil and type(xml.root.project.properties) == "table" then
-            value = xml.root.project.properties[var:gsub("project%.", ""):gsub("properties%.", "")]
+        local value = xml[var:gsub("project.", "")]
+
+        if value == nil then
+            value = xml["properties." .. var:gsub("project%.", "")]
         end
 
         res = res:gsub("%${" .. var .. "}", value or var)
@@ -530,10 +561,16 @@ local function get_project_info(pom_file, refresh_project_info)
         local pomParser = xml2lua.parser(pomXml)
         pomParser:parse(pom_file_str)
 
-        local groupId = substitute(pomXml, pomXml.root.project.groupId)
-        local artifactId = substitute(pomXml, pomXml.root.project.artifactId)
-        local version = substitute(pomXml, pomXml.root.project.version)
-        local name = substitute(pomXml, pomXml.root.project.name)
+        local linearXml = linearizeTable(pomXml.root.project)
+
+        for k, v in pairs(linearXml) do
+            print(k, v)
+        end
+
+        local groupId = substitute(linearXml, pomXml.root.project.groupId)
+        local artifactId = substitute(linearXml, pomXml.root.project.artifactId)
+        local version = substitute(linearXml, pomXml.root.project.version)
+        local name = substitute(linearXml, pomXml.root.project.name)
 
         if groupId ~= nil and artifactId ~= nil then
             project_info = maven_info:new(groupId, artifactId, version, name)
