@@ -1,5 +1,5 @@
-local get_selected_text = function()
     local line_start = vim.fn.line("v")
+    local get_selected_text = function()
     local line_end = vim.fn.line(".")
     local col_start = vim.fn.col("v")
     local col_end = vim.fn.col(".")
@@ -226,9 +226,26 @@ vim.keymap.set("n", "<Home>", "_", { noremap = true, silent = true, desc = "Go T
 vim.keymap.set("i", "<Home>", "<esc>_i", { noremap = true, silent = true, desc = "Go To Line Start" })
 vim.keymap.set("v", "<Home>", "_", { noremap = true, silent = true, desc = "Go To Line Start" })
 
-vim.keymap.set("n", "<C-a>", "ggVG", { noremap = true, silent = true, desc = "Select All" })
-vim.keymap.set("i", "<C-a>", "<esc>ggVG", { noremap = true, silent = true, desc = "Select All" })
-vim.keymap.set("v", "<C-a>", "<esc>ggVG", { noremap = true, silent = true, desc = "Select All" })
+local select_all_old_cursor = nil
+
+vim.keymap.set("n", "<C-a>", function()
+    select_all_old_cursor = vim.api.nvim_win_get_cursor(0)
+
+    vim.api.nvim_command("normal! ggvG$")
+end, { noremap = true, silent = true, desc = "Select All" })
+
+vim.keymap.set("i", "<C-a>", "<esc>ggvG", { noremap = true, silent = true, desc = "Select All" })
+
+vim.keymap.set("v", "<C-a>", function()
+    if select_all_old_cursor then
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>", true, true, true), "", true)
+        vim.api.nvim_command(
+            "call cursor(" .. tostring(select_all_old_cursor[1] .. "," .. tostring(select_all_old_cursor[2] .. ")"))
+        )
+
+        select_all_old_cursor = nil
+    end
+end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
 
 vim.keymap.set("n", "<leader>qa", "<cmd>qa<cr>", { noremap = true, silent = true, desc = "Quit All" })
 vim.keymap.set("n", "<leader>qq", "<cmd>q<cr>", { noremap = true, silent = true, desc = "Quit" })

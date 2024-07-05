@@ -236,7 +236,9 @@ local paste = function(reg)
             vim.api.nvim_command("normal! P")
         end
 
-        vim.api.nvim_command("call cursor(" .. tostring(le + lines_count + 1) .. "," .. tostring(last_line_len + 1) .. ")")
+        vim.api.nvim_command(
+            "call cursor(" .. tostring(le + lines_count + 1) .. "," .. tostring(last_line_len + 1) .. ")"
+        )
     end
 end
 
@@ -733,3 +735,5 @@ vim.keymap.set("n", "<esc>", function()
     Pasting = false
     vim.api.nvim_command("nohlsearch")
 end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
+
+
