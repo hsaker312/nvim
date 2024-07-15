@@ -1,7 +1,3 @@
-if vim.g.vscode then
-    return
-end
-
 local jdtls_config = ""
 
 if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then

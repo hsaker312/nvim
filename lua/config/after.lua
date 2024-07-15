@@ -141,15 +141,14 @@ dap.configurations.python = {
     },
 }
 
-vim.schedule(function()
-    if io.open(vim.loop.cwd() .. "/.nvim/init.lua", "r") ~= nil then
-        vim.api.nvim_command("source " .. vim.loop.cwd() .. "/.nvim/init.lua")
-    end
+if not vim.g.vscode then
+    vim.schedule(function()
+        if io.open(vim.loop.cwd() .. "/.nvim/init.lua", "r") ~= nil then
+            vim.api.nvim_command("source " .. vim.loop.cwd() .. "/.nvim/init.lua")
+        end
 
-    vim.schedule(require("persistence").load)
-    vim.cmd.colorscheme("catppuccin-mocha")
-end)
-
-require("maven-tools").setup()
-
-print(vim.g.vscode)
+        vim.schedule(require("persistence").load)
+        vim.cmd.colorscheme("catppuccin-mocha")
+    end)
+    require("maven-tools").setup()
+end
