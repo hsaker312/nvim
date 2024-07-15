@@ -84,6 +84,8 @@ local make_tree_callback = function(item)
     return callback_makers[item.callback](item)
 end
 
+local filter = ""
+
 local function create_tree_buffer()
     line_callback = {}
     line_range = {}
@@ -256,7 +258,7 @@ local function create_tree_buffer()
             item = maven_importer.Maven_Entries[file]
         end
 
-        if item ~= nil then
+        if item ~= nil and tostring(item.info):match(filter) then
             ---@cast item Tree_Entry
             if item.module == 0 then
                 local line = ""
@@ -348,6 +350,16 @@ local function create_tree_buffer()
     })
 
     vim.api.nvim_buf_set_keymap(buf, "n", "e", "<Cmd>lua M.show_error()<CR>", {
+        noremap = true,
+        silent = true,
+    })
+
+    vim.api.nvim_buf_set_keymap(buf, "n", "<C-f>", "<Cmd>lua M.filter()<CR>", {
+        noremap = true,
+        silent = true,
+    })
+
+    vim.api.nvim_buf_set_keymap(buf, "n", "s", "<Cmd>lua M.show_effective_pom()<CR>", {
         noremap = true,
         silent = true,
     })
@@ -456,7 +468,7 @@ M.open_pom_file = function()
             --     print(tostring(x.info))
             -- end
             --
-            local file = maven_importer.Maven_Info_Pom_File[tostring(v.item.info)]
+            local file = maven_importer.Maven_Info_Pom_File[tostring(v.item.info)] or v.item.file
 
             if file ~= nil then
                 local file_buf = utils.get_file_buffer(file)
@@ -504,6 +516,29 @@ M.show_error = function()
             break
         end
     end
+end
+
+M.show_effective_pom = function()
+    local line = vim.fn.line(".")
+
+    for _, v in ipairs(line_roots) do
+        if line >= v.first and line <= v.last then
+            Importer.effective_pom(v.item, function (effective_pom)
+                local buf = vim.api.nvim_create_buf(false, true)
+                vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.split(effective_pom, "\n"))
+                vim.api.nvim_win_set_buf(main_win, buf)
+                vim.api.nvim_buf_call(buf, function ()
+                    vim.api.nvim_command("setfiletype xml")
+                end)
+            end)
+            break
+        end
+    end
+end
+
+function M.filter()
+    filter = vim.fn.input("Filter: ")
+    update_buf()
 end
 
 -- Function to toggle expand/collapse
@@ -580,9 +615,11 @@ local function toggle()
     vim.api.nvim_create_autocmd("BufWinEnter", {
         callback = function()
             if maven_win ~= nil then
-                if vim.api.nvim_win_get_buf(maven_win) ~= maven_buf then
+                local new_buf = vim.api.nvim_win_get_buf(maven_win)
+                if new_buf ~= maven_buf then
                     vim.schedule(function()
                         vim.api.nvim_win_set_buf(maven_win, maven_buf)
+                        vim.api.nvim_win_set_buf(main_win, new_buf)
                     end)
                 end
             end

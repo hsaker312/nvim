@@ -99,7 +99,7 @@ local function is_buffer_scrolled_to_end(buffer_id)
     local current_cursor_position = vim.api.nvim_win_get_cursor(runner_win_id)
 
     -- Get the number of visible lines in the current window
----@diagnostic disable-next-line: param-type-mismatch
+    ---@diagnostic disable-next-line: param-type-mismatch
     local visible_lines = vim.api.nvim_win_get_height(runner_win_id)
 
     -- Calculate the last visible line in the window
@@ -162,9 +162,17 @@ local function real_time_notification()
             counter = counter + 1
         else
             if success then
-                vim.api.nvim_echo({ { "  " .. current_command .. ": done in " .. run_total_time, "DiagnosticOk" } }, false, {})
+                vim.api.nvim_echo(
+                    { { "  " .. current_command .. ": done in " .. run_total_time, "DiagnosticOk" } },
+                    false,
+                    {}
+                )
             else
-                vim.api.nvim_echo({ { "  " .. current_command .. ": failed in " .. run_total_time, "Error" } }, false, {})
+                vim.api.nvim_echo(
+                    { { "  " .. current_command .. ": failed in " .. run_total_time, "Error" } },
+                    false,
+                    {}
+                )
             end
 
             timer:stop()
@@ -229,6 +237,15 @@ function Runner.run(entry, pom_file)
     current_command = entry.command
 
     real_time_notification()
+
+    local cmd_str = pipe_cmd.cmd
+
+    for _, arg in ipairs(pipe_cmd.args) do
+        cmd_str = cmd_str .. " " .. arg
+    end
+
+    print(cmd_str)
+    append_to_buffer({ cmd_str }, 1)
 
     runner_handle = vim.loop.spawn(pipe_cmd.cmd, {
         args = pipe_cmd.args,

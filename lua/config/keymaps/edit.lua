@@ -139,7 +139,7 @@ local paste = function(reg)
         end
 
         vim.api.nvim_command(
-            "call cursor(" .. tostring(le + lines_count) .. "," .. tostring(last_line_len) .. ")"
+            "call cursor(" .. tostring(ls + lines_count) .. "," .. tostring(last_line_len) .. ")"
         )
     end
 end

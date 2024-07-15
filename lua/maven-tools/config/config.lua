@@ -21,5 +21,8 @@ Config.local_config_dir = ".nvim/.maven"
 ---@type integer
 Config.max_parallel_jobs = 4
 
+---@type string[]
+Config.ignore_files = {"/META%-INF/"}
+
 return Config
 

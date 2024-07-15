@@ -511,7 +511,7 @@ local function linearizeTable(t)
     traverse(t, "")
     return result
 end
-require("diagnostics-details")
+
 ---comment
 ---@param xml any
 ---@param str string
@@ -524,12 +524,6 @@ local function substitute(xml, str)
     local res = str
 
     for var in str:gmatch("%${(.-)}") do
-        -- local value = xml.root.project[var:gsub("project.", "")]
-        --
-        --        -- if value == nil and type(xml.root.project.properties) == "table" then
-        --     value = xml.root.project.properties[var:gsub("project%.", ""):gsub("properties%.", "")]
-        -- end
-
         local value = xml[var:gsub("project.", "")]
 
         if value == nil then
@@ -655,6 +649,51 @@ local function process_project(project, refresh_project_info)
 
         return { project_info = project_info, entry = entry, plugins = plugins, modules = modules, parent = parent }
     end
+end
+
+---@param entry Tree_Entry
+---@param callback fun(effective_pom:string):nil
+function Importer.effective_pom(entry, callback)
+    local pom_file = ""
+
+    if entry.file ~= nil then
+        pom_file = entry.file
+    else
+        pom_file = Importer.Maven_Info_Pom_File[tostring(entry.info)]
+
+    end
+
+    if pom_file == nil then
+        return
+    end
+
+    task_mgr:run(pom_file, maven_config.importer_pipe_cmd(pom_file, { "help:effective-pom" }), function(xml)
+        local start = xml:find("<projects")
+
+        ---@type integer|nil
+        local finish = nil
+
+        ---@type string
+        local finishTag = nil
+
+        if start ~= nil then
+            finishTag = "</projects>"
+        else
+            start = xml:find("<project")
+
+            finishTag = "</project>"
+        end
+
+        finish = xml:find(finishTag)
+
+        if start ~= nil and finish ~= nil then
+            finish = finish + #finishTag
+
+            vim.schedule(function ()
+                callback(xml:sub(start, finish))
+            end)
+        end
+    end)
 end
 
 ---@param pom_file string

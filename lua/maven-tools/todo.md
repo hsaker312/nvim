@@ -4,16 +4,22 @@
     [v] Import pom file of sub module if file is not imported and recursive search is disabled
     [v] Wrap task commands to ensure tasks are always terminated
     [v] Store pom file checksum
-    [x] Restructure maven importer
-    [x] Ignore file
-    [x] Error Message for failed projects
-    [x] find project
-    [x] get name from project if exists
-    [x] cache plugins
+    [-] Restructure maven importer
+    [-] Ignore file
+    [-] Error Message for failed projects
+    [-] find project
+    [-] get name from project if exists
+    [-] cache plugins
     [x] prevent refresh while refreshing
     [x] ability to cancel
     [x] per project importing indicator
     [x] Error Message for failed projects
+    [x] Reload all
+    [x] Download sources and documentation
+    [x] Manually Add pom files
+    [x] toggle offline mode
+    [x] collapse all
+    [-] show effective pom
 [*] Global configuration
 [*] per directory configuration
 [*] Maven runner

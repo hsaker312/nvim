@@ -455,6 +455,16 @@ end
 --     print(v:dirname())
 -- end
 
+local function is_ignored(file)
+    for _, ignore_file in ipairs(Config.ignore_files) do
+        if tostring(file):match(ignore_file) then
+            return true
+        end
+    end
+
+    return false
+end
+
 --- @param directory string|Path
 --- @return Array?
 M.find_pom_files = function(directory)
@@ -479,7 +489,7 @@ M.find_pom_files = function(directory)
         end
 
         for _, file in ipairs(files) do
-            if file:filename() == "pom.xml" and not tostring(file):match("/META%-INF/") then
+            if file:filename() == "pom.xml" and not is_ignored(file) then
                 pom_files:append(tostring(file))
             elseif config.recursive_pom_search and file:is_directory() then
                 dirs:push(file)
