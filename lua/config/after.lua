@@ -151,3 +151,5 @@ vim.schedule(function()
 end)
 
 require("maven-tools").setup()
+
+print(vim.g.vscode)

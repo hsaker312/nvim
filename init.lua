@@ -1,3 +1,4 @@
+vim.g.vscode = false
 -- bootstrap lazy.nvim, LazyVim and your plugins
 local handle = io.popen("git pull")
 
