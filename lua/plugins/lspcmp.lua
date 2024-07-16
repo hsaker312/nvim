@@ -15,7 +15,7 @@ return {
             ["<CR>"] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
             ["<Tab>"] = cmp.mapping(function()
                 vim.api.nvim_command("normal! i\t")
-                vim.api.nvim_command("normal! l")
+                vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<right>", true, true, true), "", true)
             end),
             ["<S-Tab>"] = cmp.mapping(function()
                 local line_num = vim.fn.line(".")

@@ -50,7 +50,7 @@ return {
                     },
                     separator = { left = "", right = "" },
                     color = { fg = "#FFFFFF", bg = "#3f2a54", gui = "bold" },
-                    spinner_symbols = { "", "", "", "" },
+                    spinner_symbols = { "", "", "", "", "", "" },
                 },
                 {
                     function()
