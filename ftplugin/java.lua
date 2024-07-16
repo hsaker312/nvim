@@ -102,7 +102,7 @@ local config = {
     settings = {
         java = {
             -- TODO Replace this with the absolute path to your main java version (JDK 17 or higher)
-            home = "/home/helmy/.jdks/azul-1.8.0_412",
+            home = jdk,
             eclipse = {
                 downloadSources = true,
             },
