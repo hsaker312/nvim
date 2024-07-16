@@ -25,7 +25,7 @@ end
 local jdtls = require("jdtls")
 local jdtls_path = require("mason-registry").get_package("jdtls"):get_install_path()
 local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t")
-local workspace_dir = vim.env.HOME .. "/jdtls-workspace/" .. project_name
+local workspace_dir = home .. "/jdtls-workspace/" .. project_name
 
 local bundles = {
     vim.fn.glob(
@@ -102,7 +102,7 @@ local config = {
     settings = {
         java = {
             -- TODO Replace this with the absolute path to your main java version (JDK 17 or higher)
-            home = jdk,
+            home = home .. "/.jdks/azul-1.8.0_412",
             eclipse = {
                 downloadSources = true,
             },
