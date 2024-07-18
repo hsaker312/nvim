@@ -171,8 +171,6 @@ vim.keymap.set("n", "<A-RightMouse>", "<C-i>", { noremap = true, silent = true, 
 vim.keymap.set("n", "<A-Right>", "<C-i>", { noremap = true, silent = true, desc = "Forward" })
 vim.keymap.set("n", "<A-l>", "<C-i>", { noremap = true, silent = true, desc = "Forward" })
 
-vim.keymap.set("n", "v&", "v$h", { noremap = true, silent = true, desc = "Line last character" })
-
 vim.keymap.set("n", "<A-up>", "v:m '<-2<CR>gv=gv", { noremap = true, silent = true, desc = "Move Line Up" })
 vim.keymap.set(
     "i",
@@ -231,10 +229,10 @@ local select_all_old_cursor = nil
 vim.keymap.set("n", "<C-a>", function()
     select_all_old_cursor = vim.api.nvim_win_get_cursor(0)
 
-    vim.api.nvim_command("normal! ggvG$")
+    vim.api.nvim_command("normal! 0ggvG$")
 end, { noremap = true, silent = true, desc = "Select All" })
 
-vim.keymap.set("i", "<C-a>", "<esc>ggvG", { noremap = true, silent = true, desc = "Select All" })
+vim.keymap.set("i", "<C-a>", "<esc>0ggvG", { noremap = true, silent = true, desc = "Select All" })
 
 vim.keymap.set("v", "<C-a>", function()
     if select_all_old_cursor then
