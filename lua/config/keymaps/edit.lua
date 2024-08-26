@@ -144,6 +144,17 @@ local paste = function(reg)
     end
 end
 
+local wrap_selected = function(reg, open, close)
+    surround_selected(open, close)
+
+    vim.defer_fn(function()
+        vim.api.nvim_command('normal! o')
+        vim.api.nvim_command('normal! u')
+        vim.api.nvim_command('normal! h')
+        vim.api.nvim_command('normal! "' .. reg .. "P")
+    end, 30)
+end
+
 vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
@@ -154,6 +165,13 @@ vim.keymap.set("v", "<C-x>", "<Del>i", { noremap = true, silent = true, desc = "
 
 vim.keymap.set({ "n", "i" }, "<C-c>", "<esc>", { noremap = true, silent = true, desc = "Copy Line" })
 vim.keymap.set("v", "<C-c>", '"+y<esc>gv', { noremap = true, silent = true, desc = "Copy Selected" })
+
+vim.keymap.set("v", "<leader>0", '"0ygv', { noremap = true, silent = true, desc = "Copy Selected" })
+vim.keymap.set("v", "<leader>1", '"1ygv', { noremap = true, silent = true, desc = "Copy Selected" })
+vim.keymap.set("v", "<leader>2", '"2ygv', { noremap = true, silent = true, desc = "Copy Selected" })
+vim.keymap.set("v", "<leader>3", '"3ygv', { noremap = true, silent = true, desc = "Copy Selected" })
+vim.keymap.set("v", "<leader>4", '"4ygv', { noremap = true, silent = true, desc = "Copy Selected" })
+vim.keymap.set("v", "<leader>5", '"5ygv', { noremap = true, silent = true, desc = "Copy Selected" })
 
 vim.keymap.set("n", "<C-v>", function()
     local col_num = vim.fn.col(".")
@@ -272,24 +290,31 @@ vim.keymap.set("v", "<A-/>", function()
     vim.api.nvim_feedkeys("gc", "", true)
 end, { noremap = true, silent = true, desc = "Comment Selected" })
 
-vim.keymap.set("n", "<leader>(", function()
-    vim.api.nvim_feedkeys("ds(", "", true)
-end, { noremap = true, silent = true, desc = "Remove ()" })
-vim.keymap.set("n", "<leader>[", function()
-    vim.api.nvim_feedkeys("ds[", "", true)
-end, { noremap = true, silent = true, desc = "Remove []" })
-vim.keymap.set("n", "<leader>{", function()
-    vim.api.nvim_feedkeys("ds{", "", true)
-end, { noremap = true, silent = true, desc = "Remove {}" })
-vim.keymap.set("n", "<leader><", function()
-    vim.api.nvim_feedkeys("ds<", "", true)
-end, { noremap = true, silent = true, desc = "Remove <>" })
-vim.keymap.set("n", '<leader>"', function()
-    vim.api.nvim_feedkeys('ds"', "", true)
-end, { noremap = true, silent = true, desc = 'Remove ""' })
-vim.keymap.set("n", "<leader>'", function()
-    vim.api.nvim_feedkeys("ds'", "", true)
-end, { noremap = true, silent = true, desc = "Remove ''" })
+for i = 0, 5, 1 do
+    vim.keymap.set("v", "<leader>(" .. i, function()
+        wrap_selected(tostring(i), '(', ')')
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register()'})
+
+    vim.keymap.set("v", "<leader>[" .. i, function()
+        wrap_selected(tostring(i), '[', ']')
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register[]' })
+
+    vim.keymap.set("v", "<leader>{" .. i, function()
+        wrap_selected(tostring(i), '{', '}')
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register{}' })
+
+    vim.keymap.set("v", "<leader><" .. i, function()
+        wrap_selected(tostring(i), '<', '>')
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register<>' })
+
+    vim.keymap.set("v", '<leader>"' .. i, function()
+        wrap_selected(tostring(i), '"', '"')
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register""' })
+
+    vim.keymap.set("v", "<leader>'" .. i, function()
+        wrap_selected(tostring(i), "'", "'")
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. "register''" })
+end
 
 vim.keymap.set("n", "<CR>", function()
     local line_num = vim.fn.line(".")
@@ -654,10 +679,6 @@ local multi_cursor = function(mouse)
         end, 50)
     end
 end
-
-vim.keymap.set("n", "<leader>p", function()
-    require("dropbar.api").pick()
-end, { noremap = true, silent = true, desc = "Dropbar Expand Pick" })
 
 vim.keymap.set("n", "<leader>n", function()
     multi_cursor(false)

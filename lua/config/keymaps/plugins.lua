@@ -74,6 +74,10 @@ vim.keymap.set(
     { noremap = true, silent = true, desc = "Toggle Bookmarks" }
 )
 
+vim.keymap.set("n", "<leader>p", function()
+    require("dropbar.api").pick()
+end, { noremap = true, silent = true, desc = "Dropbar Expand Pick" })
+
 vim.keymap.set(
     "n",
     "<leader><C-right>",
