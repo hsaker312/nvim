@@ -144,7 +144,7 @@ local paste = function(reg)
     end
 end
 
-vim.keymap.set("n", "V", "0v$h", { noremap = true, silent = true, desc = "Paste" })
+vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 
@@ -259,6 +259,37 @@ end)
 vim.keymap.set("v", "'", function()
     surround_selected("'", "'")
 end)
+
+vim.keymap.set("n", "<A-/>", function()
+    vim.api.nvim_feedkeys("gcc", "", true)
+end, { noremap = true, silent = true, desc = "Comment Line" })
+
+vim.keymap.set("i", "<A-/>", function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>gccji", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Comment Line" })
+
+vim.keymap.set("v", "<A-/>", function()
+    vim.api.nvim_feedkeys("gc", "", true)
+end, { noremap = true, silent = true, desc = "Comment Selected" })
+
+vim.keymap.set("n", "<leader>(", function()
+    vim.api.nvim_feedkeys("ds(", "", true)
+end, { noremap = true, silent = true, desc = "Remove ()" })
+vim.keymap.set("n", "<leader>[", function()
+    vim.api.nvim_feedkeys("ds[", "", true)
+end, { noremap = true, silent = true, desc = "Remove []" })
+vim.keymap.set("n", "<leader>{", function()
+    vim.api.nvim_feedkeys("ds{", "", true)
+end, { noremap = true, silent = true, desc = "Remove {}" })
+vim.keymap.set("n", "<leader><", function()
+    vim.api.nvim_feedkeys("ds<", "", true)
+end, { noremap = true, silent = true, desc = "Remove <>" })
+vim.keymap.set("n", '<leader>"', function()
+    vim.api.nvim_feedkeys('ds"', "", true)
+end, { noremap = true, silent = true, desc = 'Remove ""' })
+vim.keymap.set("n", "<leader>'", function()
+    vim.api.nvim_feedkeys("ds'", "", true)
+end, { noremap = true, silent = true, desc = "Remove ''" })
 
 vim.keymap.set("n", "<CR>", function()
     local line_num = vim.fn.line(".")

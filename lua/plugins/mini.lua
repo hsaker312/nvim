@@ -4,7 +4,9 @@ return {
     config = function()
         require("mini.ai").setup()
         require("mini.extra").setup()
-        require("mini.pick").setup()
-        require("mini.indentscope").setup()
+        if not vim.g.vscode then
+            require("mini.pick").setup()
+            require("mini.indentscope").setup()
+        end
     end,
 }

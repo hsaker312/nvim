@@ -1,5 +1,6 @@
 return {
     "tomasky/bookmarks.nvim",
+    enabled = not vim.g.vscode,
     config = function()
         local save_path = ""
 

@@ -1,5 +1,5 @@
-    local line_start = vim.fn.line("v")
-    local get_selected_text = function()
+local line_start = vim.fn.line("v")
+local get_selected_text = function()
     local line_end = vim.fn.line(".")
     local col_start = vim.fn.col("v")
     local col_end = vim.fn.col(".")
@@ -323,11 +323,37 @@ vim.keymap.set({ "n", "v" }, "<leader>k", "zt", { noremap = true, silent = true,
 vim.keymap.set({ "n", "v" }, "<leader><down>", "zb", { noremap = true, silent = true, desc = "Sroll Page Down" })
 vim.keymap.set({ "n", "v" }, "<leader>j", "zb", { noremap = true, silent = true, desc = "Sroll Page Down" })
 
+vim.keymap.set(
+    "n",
+    "<leader><leader>",
+    vim.lsp.buf.code_action,
+    { noremap = true, silent = true, desc = "Lsp Code Action" }
+)
 vim.keymap.set("n", "<leader>cd", vim.lsp.buf.definition, { noremap = true, silent = true, desc = "Go To Definition" })
-vim.keymap.set("n", "<leader>cD", vim.lsp.buf.declaration, { noremap = true, silent = true, desc = "Go To Declaration" })
-vim.keymap.set("n", "<leader>ci", vim.lsp.buf.implementation, { noremap = true, silent = true, desc = "GO To Implementation" })
-vim.keymap.set("n", "<leader>ch", vim.lsp.buf.signature_help, { noremap = true, silent = true, desc = "Show Signature Docs" })
-vim.keymap.set("n", "<leader>ct", vim.lsp.buf.type_definition, { noremap = true, silent = true, desc = "Go To Type Definition" })
+vim.keymap.set(
+    "n",
+    "<leader>cD",
+    vim.lsp.buf.declaration,
+    { noremap = true, silent = true, desc = "Go To Declaration" }
+)
+vim.keymap.set(
+    "n",
+    "<leader>ci",
+    vim.lsp.buf.implementation,
+    { noremap = true, silent = true, desc = "GO To Implementation" }
+)
+vim.keymap.set(
+    "n",
+    "<leader>ch",
+    vim.lsp.buf.signature_help,
+    { noremap = true, silent = true, desc = "Show Signature Docs" }
+)
+vim.keymap.set(
+    "n",
+    "<leader>ct",
+    vim.lsp.buf.type_definition,
+    { noremap = true, silent = true, desc = "Go To Type Definition" }
+)
 vim.keymap.set("n", "<leader>cr", vim.lsp.buf.rename, { noremap = true, silent = true, desc = "Rename Reference" })
 vim.keymap.set(
     "n",
@@ -335,7 +361,12 @@ vim.keymap.set(
     "<cmd> Telescope lsp_references <CR>",
     { noremap = true, silent = true, desc = "Find Symbol References (Telescope)" }
 )
-vim.keymap.set("n", "<leader>sL", vim.lsp.buf.references, { noremap = true, silent = true, desc = "Find Symbol References" })
+vim.keymap.set(
+    "n",
+    "<leader>sL",
+    vim.lsp.buf.references,
+    { noremap = true, silent = true, desc = "Find Symbol References" }
+)
 vim.keymap.set(
     "n",
     "<leader>cp",

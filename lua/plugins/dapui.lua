@@ -1,33 +1,33 @@
 return {
-  "rcarriga/nvim-dap-ui",
+    "rcarriga/nvim-dap-ui",
+    enabled = not vim.g.vscode,
+    dependencies = {
+        "mfussenegger/nvim-dap",
+        "nvim-neotest/nvim-nio",
+    },
 
-  dependencies = {
-    "mfussenegger/nvim-dap",
-    "nvim-neotest/nvim-nio",
-  },
-
-  config = function()
-    local dap, dapui = require("dap"), require("dapui")
-    dapui.setup()
-    dap.listeners.before.attach.dapui_config = function()
-      dapui.open()
-    end
-    dap.listeners.before.launch.dapui_config = function()
-      dapui.open()
-    end
-    dap.listeners.before.event_terminated.dapui_config = function()
-      dapui.close()
-    end
-    dap.listeners.before.event_exited.dapui_config = function()
-      dapui.close()
-    end
-    vim.fn.sign_define(
-      "DapBreakpoint",
-      { text = "🔴", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
-    )
-    vim.fn.sign_define(
-      "DapStopped",
-      { text = "⏸️", texthl = "DapStopped", linehl = "DapStopped", numhl = "DapStopped" }
-    )
-  end,
+    config = function()
+        local dap, dapui = require("dap"), require("dapui")
+        dapui.setup()
+        dap.listeners.before.attach.dapui_config = function()
+            dapui.open()
+        end
+        dap.listeners.before.launch.dapui_config = function()
+            dapui.open()
+        end
+        dap.listeners.before.event_terminated.dapui_config = function()
+            dapui.close()
+        end
+        dap.listeners.before.event_exited.dapui_config = function()
+            dapui.close()
+        end
+        vim.fn.sign_define(
+            "DapBreakpoint",
+            { text = "🔴", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
+        )
+        vim.fn.sign_define(
+            "DapStopped",
+            { text = "⏸️", texthl = "DapStopped", linehl = "DapStopped", numhl = "DapStopped" }
+        )
+    end,
 }

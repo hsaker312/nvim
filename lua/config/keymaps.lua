@@ -4,10 +4,14 @@
 --
 vim.keymap.set({ "n", "v" }, "q", "<nop>")
 vim.keymap.set({ "n", "v" }, "Q", "<nop>")
--- --
+
 require("config.keymaps.utils")
 require("config.keymaps.findReplace")
-require("config.keymaps.plugins")
 require("config.keymaps.edit")
 require("config.after")
 
+if vim.g.vscode then
+    require("config.keymaps.vscode")
+else
+    require("config.keymaps.plugins")
+end
