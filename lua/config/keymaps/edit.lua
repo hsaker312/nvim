@@ -149,7 +149,7 @@ local wrap_selected = function(reg, open, close)
 
     vim.defer_fn(function()
         vim.api.nvim_command('normal! o')
-        vim.api.nvim_command('normal! u')
+        vim.api.nvim_command('normal! "ay')
         vim.api.nvim_command('normal! h')
         vim.api.nvim_command('normal! "' .. reg .. "P")
     end, 30)
