@@ -3,7 +3,7 @@ return {
     -- LSP Configuration
     -- https://github.com/neovim/nvim-lspconfig
     "neovim/nvim-lspconfig",
-    enabled = false,
+    enabled = not vim.g.vscode,
     event = "VeryLazy",
     dependencies = {
         -- LSP Management
@@ -18,7 +18,7 @@ return {
 
         -- Useful status updates for LSP
         -- https://github.com/j-hui/fidget.nvim
-        { "j-hui/fidget.nvim", opts = {} },
+        -- { "j-hui/fidget.nvim", opts = {} },
 
         -- Additional lua configuration, makes nvim stuff amazing!
         -- https://github.com/folke/neodev.nvim

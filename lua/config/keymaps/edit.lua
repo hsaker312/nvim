@@ -303,7 +303,7 @@ for i = 0, 5, 1 do
         wrap_selected(tostring(i), '{', '}')
     end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register{}' })
 
-    vim.keymap.set("v", "<leader><" .. i, function()
+    vim.keymap.set("v", "<leader>>" .. i, function()
         wrap_selected(tostring(i), '<', '>')
     end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register<>' })
 
