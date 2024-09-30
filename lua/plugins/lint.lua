@@ -1,6 +1,6 @@
 return {
     "mfussenegger/nvim-lint",
-    enabled = not vim.g.vscode,
+    enabled = false,
     config = function()
         require("lint").linters_by_ft = {
             python = { "mypy", "ruff" },

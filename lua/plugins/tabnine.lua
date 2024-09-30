@@ -1,10 +1,11 @@
 return {
     "codota/tabnine-nvim",
-    build = "./dl_binaries.sh",
+    enabled = not vim.g.vscode,
+    build = ".\\dl_binaries.ps1",
     config = function()
         require("tabnine").setup({
             disable_auto_comment = true,
-            accept_keymap = "<right>",
+            accept_keymap = "<c-right>",
             dismiss_keymap = "<C-]>",
             debounce_ms = 800,
             suggestion_color = { gui = "#a8b39a", cterm = 244 },

@@ -253,10 +253,10 @@ vim.keymap.set({ "n", "v" }, "<C-right>", "<C-w>l", { noremap = true, silent = t
 vim.keymap.set({ "n", "v" }, "<C-up>", "<C-w>k", { noremap = true, silent = true, desc = "Focus Up" })
 vim.keymap.set({ "n", "v" }, "<C-down>", "<C-w>j", { noremap = true, silent = true, desc = "Focus Down" })
 
-vim.keymap.set("i", "<C-left>", "<esc><C-w>h", { noremap = true, silent = true, desc = "Focus Left" })
-vim.keymap.set("i", "<C-right>", "<esc><C-w>l", { noremap = true, silent = true, desc = "Focus Right" })
-vim.keymap.set("i", "<C-up>", "<esc><C-w>k", { noremap = true, silent = true, desc = "Focus Up" })
-vim.keymap.set("i", "<C-down>", "<esc><C-w>j", { noremap = true, silent = true, desc = "Focus Down" })
+-- vim.keymap.set("i", "<C-left>", "<esc><C-w>h", { noremap = true, silent = true, desc = "Focus Left" })
+-- vim.keymap.set("i", "<C-right>", "<esc><C-w>l", { noremap = true, silent = true, desc = "Focus Right" })
+-- vim.keymap.set("i", "<C-up>", "<esc><C-w>k", { noremap = true, silent = true, desc = "Focus Up" })
+-- vim.keymap.set("i", "<C-down>", "<esc><C-w>j", { noremap = true, silent = true, desc = "Focus Down" })
 
 vim.keymap.set({ "n", "v" }, "<C-h>", "<C-w>h", { noremap = true, silent = true, desc = "Focus Left" })
 vim.keymap.set({ "n", "v" }, "<C-l>", "<C-w>l", { noremap = true, silent = true, desc = "Focus Right" })

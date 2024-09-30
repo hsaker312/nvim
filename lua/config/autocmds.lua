@@ -79,9 +79,16 @@ if not vim.g.vscode then
         once = true,
     })
 
-    vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-        callback = function()
-            require("lint").try_lint()
-        end,
-    })
+    -- vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+    --     callback = function()
+    --         require("lint").try_lint()
+    --     end,
+    -- })
+
+    vim.cmd[[
+        augroup jdtls_lsp
+            autocmd!
+            autocmd FileType java lua require("config/jdtls").setup_jdtls()
+        augroup end
+    ]]
 end

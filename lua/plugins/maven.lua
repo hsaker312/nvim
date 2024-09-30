@@ -1,6 +1,6 @@
 return {
     "eatgrass/maven.nvim",
-    enabled = not vim.g.vscode,
+    enabled = false,
     cmd = { "Maven", "MavenExec" },
     dependencies = "nvim-lua/plenary.nvim",
     config = function()

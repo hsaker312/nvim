@@ -1,6 +1,6 @@
 return {
     "hedyhli/outline.nvim",
-    enabled = not vim.g.vscode,
+    enabled = false,
     lazy = true,
     cmd = { "Outline", "OutlineOpen" },
     keys = { -- Example mapping to toggle outline

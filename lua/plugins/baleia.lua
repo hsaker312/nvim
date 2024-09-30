@@ -1,1 +1,1 @@
-return { "m00qek/baleia.nvim" }
+return { "m00qek/baleia.nvim", enabled = not vim.g.vscode }

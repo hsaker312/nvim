@@ -1,6 +1,6 @@
 return {
     "lewis6991/satellite.nvim",
-    enabled = not vim.g.vscode,
+    enabled = false,
     config = function()
         require("satellite").setup({
             current_only = false,

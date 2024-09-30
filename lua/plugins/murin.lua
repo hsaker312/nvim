@@ -1,5 +1,5 @@
 return {
     "AckslD/muren.nvim",
-    enabled = not vim.g.vscode,
+    enabled = false,
     config = true,
 }

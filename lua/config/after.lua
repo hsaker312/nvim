@@ -141,6 +141,8 @@ if not vim.g.vscode then
             end,
         },
     }
+    
+    vim.lsp.log_level = vim.log.levels.ERROR
 end
 
 if not vim.g.vscode then
