@@ -141,8 +141,28 @@ if not vim.g.vscode then
             end,
         },
     }
-    
+
     vim.lsp.log_level = vim.log.levels.ERROR
+
+    require("conform").formatters.xmlformatter = function(bufnr)
+        local home = vim.env.HOME
+
+        if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+            return {
+                command = require("conform.util").find_executable({
+                    home .. "/AppData/Local/nvim-data/mason/bin/xmlformat.cmd",
+                }, "xmlformat"),
+                args = { "--indent", 4, vim.api.nvim_buf_get_name(bufnr) },
+            }
+        else
+            return {
+                command = require("conform.util").find_executable({
+                    home .. "/.local/share/nvim/mason/bin",
+                }, "xmlformat"),
+                args = { "--indent", 4, vim.api.nvim_buf_get_name(bufnr) },
+            }
+        end
+    end
 end
 
 if not vim.g.vscode then

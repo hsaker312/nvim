@@ -84,8 +84,28 @@ function M.get_file_buffer(file)
     end
 end
 
+---@return integer|nil
+function M.get_editor_window()
+    local windows = vim.api.nvim_tabpage_list_wins(0) -- Get all windows in the current tab page
+
+    for _, win in ipairs(windows) do
+        local buf = vim.api.nvim_win_get_buf(win) -- Get the buffer associated with the window
+        local buf_name = vim.api.nvim_buf_get_name(buf) -- Get the buffer's name
+
+        if buf_name ~= nil and buf_name ~= "" then
+            if buf_name:match("[%[|%]]") == nil then
+                return win
+            end
+        end
+    end
+
+    return nil
+end
+
+
+---@param ary table|nil
 --- @return Array
-function M.Array()
+function M.Array(ary)
     ---@class Array
     ---@field private _size integer
     ---@field private _values any[]
@@ -95,10 +115,11 @@ function M.Array()
     }
 
     --- @param value any
-    --- @return nil
+    --- @return Array
     function array:append(value)
         self._size = self._size + 1
         table.insert(self._values, value)
+        return self
     end
 
     --- @param index integer
@@ -199,6 +220,12 @@ function M.Array()
         end,
     })
 
+    if ary ~= nil then
+        for _, v in ipairs(ary) do
+            array:append(v)
+        end
+    end
+
     return array
 end
 
@@ -269,11 +296,11 @@ M.create_directories = function(path)
         current_path = current_path .. dir .. "/"
 
         -- Check if the directory exists
-        local ok, err, code = os.rename(current_path, current_path)
+        local ok, _, code = os.rename(current_path, current_path)
 
         if not ok and code ~= 13 then
             -- Create the directory if it doesn't exist
-            local success = vim.loop.fs_mkdir(current_path, 493) -- 493 is octal for 0755
+            local success = vim.uv.fs_mkdir(current_path, 493) -- 493 is octal for 0755
 
             if not success then
                 return false
@@ -317,14 +344,14 @@ function M.Path(path)
     --- @param self Path
     --- @return boolean
     function obj.is_directory(self)
-        local stat = vim.loop.fs_stat(self.str)
+        local stat = vim.uv.fs_stat(self.str)
         return stat ~= nil and stat.type == "directory"
     end
 
     --- @param self Path
     --- @return boolean
     function obj.is_file(self)
-        local stat = vim.loop.fs_stat(self.str)
+        local stat = vim.uv.fs_stat(self.str)
         return stat ~= nil and stat.type == "file"
     end
 
@@ -632,10 +659,9 @@ function M.Task_Mgr()
         local function invoke_task(task_info)
             local buffer = ""
 
-            running_tasks[task_info.task_number] =
-                { stdout = vim.loop.new_pipe(false), stderr = vim.loop.new_pipe(false) }
+            running_tasks[task_info.task_number] = { stdout = vim.uv.new_pipe(false), stderr = vim.uv.new_pipe(false) }
 
-            running_tasks[task_info.task_number].handle = vim.loop.spawn(task_info.pipe_cmd.cmd, {
+            running_tasks[task_info.task_number].handle = vim.uv.spawn(task_info.pipe_cmd.cmd, {
                 args = task_info.pipe_cmd.args,
                 stdio = {
                     nil,
@@ -667,13 +693,13 @@ function M.Task_Mgr()
                 end
             end)
 
-            vim.loop.read_start(running_tasks[task_info.task_number].stdout, function(err, data)
+            vim.uv.read_start(running_tasks[task_info.task_number].stdout, function(_, data)
                 if data then
                     buffer = buffer .. data:gsub("[\1-\9\11-\31\127]", "")
                 end
             end)
 
-            vim.loop.read_start(running_tasks[task_info.task_number].stderr, function(err, data)
+            vim.uv.read_start(running_tasks[task_info.task_number].stderr, function(_, data)
                 if data then
                     buffer = buffer .. data:gsub("[\1-\9\11-\31\127]", "")
                 end

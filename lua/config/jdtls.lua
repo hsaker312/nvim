@@ -49,7 +49,7 @@ local home = vim.env.HOME
 local function get_workspace()
     -- Get the home directory of your operating system
     -- Declare a directory where you would like to store project information
-    local workspace_path = home .. "/code/workspace/"
+    local workspace_path = home .. "/.jdtls/workspace/"
     -- Determine the project name
     local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t")
     -- Create the workspace directory by concatenating the designated workspace path and the project name
@@ -124,7 +124,11 @@ local function java_keymaps()
     vim.keymap.set("n", "<leader>Ju", "<Cmd> JdtUpdateConfig<CR>", { desc = "[J]ava [U]pdate Config" })
 
     vim.keymap.set({ "n", "v" }, "<leader>cf", function()
-        vim.lsp.buf.format({ async = true })
+        if vim.bo.filetype == "java" then
+            vim.lsp.buf.format({ async = true })
+        else
+            require("lazyvim.util").format({ force = true })
+        end
     end)
 end
 
@@ -164,7 +168,63 @@ local function get_runtimes()
     return res
 end
 
+local function get_class_paths(cwd, paths)
+    local inti = false
+
+    if paths == nil then
+        paths = {}
+        inti = true
+    end
+
+    if cwd == nil then
+        cwd = vim.uv.cwd()
+        if cwd == nil then
+            return
+        end
+        cwd = cwd:gsub("%\\", "/")
+    end
+
+    local dirs = vim.fn.readdir(cwd)
+
+    for _, dir in ipairs(dirs) do
+        local path = cwd .. "/" .. dir
+        local stat = vim.uv.fs_stat(path)
+        -- print("0000000000")
+
+        if stat ~= nil and stat.type == "directory" then
+            -- print("1111111111")
+            -- print(path)
+            if path:match("/main/java/com$") ~= nil then
+                -- print(path)
+                local path_res = path:gsub("/com$", "")
+                table.insert(paths, path_res)
+            end
+
+            get_class_paths(path, paths)
+        end
+    end
+
+    if inti then
+        return paths
+    end
+    --
+    -- local res = ""
+    --
+    -- if inti then
+    --     for _, path in ipairs(paths) do
+    --         res = res .. path .. ";"
+    --     end
+    --
+    --     if res ~= "" then
+    --         res = res:sub(1, -2)
+    --     end
+    -- end
+    --
+    -- return res
+end
+
 local function setup_jdtls()
+    -- print(get_class_paths())
     -- Get access to the jdtls plugin and all of its functionality
     local jdtls = require("jdtls")
 
@@ -178,8 +238,8 @@ local function setup_jdtls()
     local bundles = get_bundles()
 
     -- Determine the root directory of the project by looking for these specific markers
-    local root_dir = jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
-    -- local root_dir = jdtls.setup.find_root({ ".jdtls" })
+    -- local root_dir = jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
+    local root_dir = jdtls.setup.find_root({ ".jdtls" })
 
     -- Tell our JDTLS language features it is capable of
     local capabilities = {
@@ -212,8 +272,8 @@ local function setup_jdtls()
         "-Declipse.product=org.eclipse.jdt.ls.core.product",
         "-Dlog.protocol=true",
         "-Dlog.level=ALL",
-        "-Djava.class.path=" .. home .. "/maven/repos/headless",
-        "-Dbranch=headless",
+        -- "-Djava.class.path=" .. "C:/Users/saker.helmy/msd/headless/components/headless/MqttCommon/src/main/java",
+        -- "-Dbranch=headless",
         "-Xmx1g",
         "--add-modules=ALL-SYSTEM",
         "--add-opens",
@@ -232,12 +292,17 @@ local function setup_jdtls()
     -- Configure settings in the JDTLS server
     local settings = {
         java = {
+            project = {
+                referencedLibraries = {
+                    -- "C:/Users/saker.helmy/msd/headless/components/headless/MqttCommon/src/main/java"
+                }
+            },
             -- Enable code formatting
             format = {
                 enabled = true,
                 -- Use the Google Style guide for code formattingh
                 settings = {
-                    url = vim.fn.stdpath("config") .. "/lang_servers/intellij-java-google-style.xml",
+                    url = vim.fn.stdpath("config") .. "/java.style.xml",
                     profile = "GoogleStyle",
                 },
             },
@@ -247,22 +312,23 @@ local function setup_jdtls()
             },
             -- Enable downloading archives from maven automatically
             maven = {
+                branch = "headless",
                 downloadSources = true,
                 userSettings = home .. "/.m2/settings.xml",
-                localRepository = home .. "/maven/repos",
+                localRepository = home .. "/maven",
             },
             -- Enable method signature help
             signatureHelp = {
                 enabled = true,
             },
             -- Use the fernflower decompiler when using the javap command to decompile byte code back to java code
-            contentProvider = {
-                preferred = "fernflower",
-            },
+            -- contentProvider = {
+            --     preferred = "fernflower",
+            -- },
             -- Setup automatical package import oranization on file save
-            saveActions = {
-                organizeImports = true,
-            },
+            -- saveActions = {
+            --     organizeImports = true,
+            -- },
             -- Customize completion options
             completion = {
                 -- When using an unimported static method, how should the LSP rank possible places to import the static method from
@@ -315,7 +381,7 @@ local function setup_jdtls()
             -- If changes to the project will require the developer to update the projects configuration advise the developer before accepting the change
             configuration = {
                 updateBuildConfiguration = "interactive",
-                runtimes = get_runtimes()
+                runtimes = get_runtimes(),
             },
             -- enable code lens in the lsp
             referencesCodeLens = {
@@ -374,7 +440,6 @@ local function setup_jdtls()
         on_attach = on_attach,
     }
 
-    
     vim.lsp.set_log_level("off")
 
     -- Start the JDTLS server

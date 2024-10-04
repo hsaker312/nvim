@@ -74,19 +74,19 @@ local quiet = false
 local debug = false
 
 ---@type string?
-local importer_jdk = "/home/helmy/.jdks/azul-1.8.0_412"
+local importer_jdk = "C:/Program Files (x86)/Java/jdk1.8.0_66"
 
 ---@type string?
-local runner_jdk = "/home/helmy/.jdks/azul-1.8.0_412"
+local runner_jdk = "C:/Program Files (x86)/Java/jdk1.8.0_66"
 
-local importer_options = { "maven.repo.local=/home/helmy/maven/repos/headless", "branch=headless" }
+local importer_options = { "maven.repo.local=c:/Users/saker.helmy/maven/repos/headless", "branch=headless" }
 
 local runner_options = {
-    "maven.repo.local=/home/helmy/maven/repos/headless",
+    "maven.repo.local=c:/Users/saker.helmy/maven/",
     "branch=headless",
-    "org.ops4j.pax.url.mvn.localRepository=/home/helmy/maven/repos/headless",
+    "org.ops4j.pax.url.mvn.localRepository=c:/Users/saker.helmy/maven/repos/headless",
     "org.ops4j.pax.url.mvn.repositories=http://swproductsrepo.meso-scale.com/nexus/content/groups/headless@id=nexus",
-    "org.ops4j.pax.url.mvn.defaultRepositories=/home/helmy/maven/repos/headless",
+    "org.ops4j.pax.url.mvn.defaultRepositories=c:/Users/saker.helmy/maven/repos/headless",
     "maven.test.skip=true",
     "license.skip.collect=true",
     "msd.clean-database.skip",

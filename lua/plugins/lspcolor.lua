@@ -1,7 +1,8 @@
 return {
     {
         "folke/lsp-colors.nvim",
-        enabled = false,
+        enabled = not vim.g.vscode,
+        -- enabled = false,
         config = function()
             require("lsp-colors").setup({
                 Error = "#db4b4b",

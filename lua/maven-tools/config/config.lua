@@ -24,5 +24,11 @@ Config.max_parallel_jobs = 4
 ---@type string[]
 Config.ignore_files = {"/META%-INF/"}
 
+---@type string
+Config.tab = "   "
+
+---@type string
+Config.default_filter = "headless"
+
 return Config
 

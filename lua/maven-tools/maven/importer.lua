@@ -14,6 +14,7 @@
 ---@field info Maven_Info|nil
 ---@field file string|nil
 ---@field error integer|nil
+---@field hide boolean|nil
 
 ---@class Maven_Project
 ---@field project_info Maven_Info
@@ -38,7 +39,7 @@
 ---@field info Maven_Info
 ---@field module_path string
 
----@class Importer
+---@class Maven_Importer
 Importer = {}
 
 local maven_info = {}
@@ -1285,8 +1286,10 @@ function Importer.process_pom_files(dir, callback)
     Importer.pom_files = utils.find_pom_files(cwd)
 
     local main_project = true
+
     ---@type table<string, boolean|nil>
     local required_cached_modules = {}
+
     local files_to_process = utils.Array()
 
     for _, pom_file in ipairs(Importer.pom_files) do

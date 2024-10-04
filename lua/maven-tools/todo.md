@@ -20,6 +20,7 @@
     [x] toggle offline mode
     [x] collapse all
     [-] show effective pom
+    [-] command to disable runner notification
 [*] Global configuration
 [*] per directory configuration
 [*] Maven runner

@@ -1,4 +1,4 @@
 return {
     "RRethy/vim-illuminate",
-    enabled = false,
+    enabled = not vim.g.vscode,
 }

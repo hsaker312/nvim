@@ -1,4 +1,7 @@
----@class Runner
+---@class Command
+---@field command string
+
+---@class Maven_Runner
 Runner = {}
 
 local prefix = "maven-tools."
@@ -6,139 +9,11 @@ local prefix = "maven-tools."
 ---@type Maven_Config
 local maven_config = require(prefix .. "config.maven")
 
----@type integer?
-local runner_win_id = nil
+---@type Utils
+local utils = require(prefix .. "utils")
 
----@type integer?
-local runner_buf_id = nil
-
----@type uv_process_t?
+---@type uv_process_t|nil
 local runner_handle = nil
-
----@type integer[]
-local autocmds = {}
-
-local lines_count = 0
-
-local baleia = require("baleia").setup({ log = "ERROR" })
-
-local function create_buf()
-    runner_buf_id = vim.api.nvim_create_buf(false, true)
-
-    vim.api.nvim_set_option_value("modifiable", true, {
-        buf = runner_buf_id,
-    })
-
-    vim.api.nvim_set_option_value("buftype", "nofile", {
-        buf = runner_buf_id,
-    })
-
-    vim.api.nvim_set_option_value("swapfile", false, {
-        buf = runner_buf_id,
-    })
-
-    vim.api.nvim_set_option_value("bufhidden", "wipe", {
-        buf = runner_buf_id,
-    })
-
-    vim.api.nvim_buf_set_keymap(runner_buf_id, "n", "q", "<Cmd>quit<CR>", {
-        noremap = true,
-        silent = true,
-    })
-end
-
-local function create_win()
-    create_buf()
-
-    if runner_buf_id ~= nil then
-        local current_win = vim.api.nvim_get_current_win()
-        -- local cursor = vim.api.nvim_win_get_cursor(current_win)
-
-        runner_win_id = vim.api.nvim_open_win(runner_buf_id, true, {
-            split = "below",
-            win = -1,
-            height = 10,
-        })
-
-        vim.api.nvim_set_current_win(current_win)
-        -- vim.api.nvim_win_set_cursor(current_win, )
-
-        vim.api.nvim_set_option_value("number", false, {
-            win = runner_win_id,
-        })
-
-        vim.api.nvim_set_option_value("spell", false, {
-            win = runner_win_id,
-        })
-
-        table.insert(
-            autocmds,
-            vim.api.nvim_create_autocmd("WinClosed", {
-                callback = function(event)
-                    if runner_win_id ~= nil then
-                        if tonumber(event.match) == runner_win_id then
-                            runner_win_id = nil
-                            for _, autocmd in ipairs(autocmds) do
-                                vim.api.nvim_del_autocmd(autocmd)
-                            end
-                            autocmds = {}
-                        end
-                    end
-                end,
-            })
-        )
-    end
-end
-
-local function is_buffer_scrolled_to_end(buffer_id)
-    -- Get the total number of lines in the buffer
-    local total_lines = vim.api.nvim_buf_line_count(buffer_id)
-
-    -- Get the current window's cursor position (line, column)
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local current_cursor_position = vim.api.nvim_win_get_cursor(runner_win_id)
-
-    -- Get the number of visible lines in the current window
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local visible_lines = vim.api.nvim_win_get_height(runner_win_id)
-
-    -- Calculate the last visible line in the window
-    local last_visible_line = current_cursor_position[1] + visible_lines - 1
-
-    -- Check if the last visible line is greater than or equal to the total number of lines
-    return last_visible_line >= total_lines
-end
-
-local function append_to_buffer(lines, count)
-    if runner_buf_id == nil then
-        return
-    end
-
-    vim.schedule(function()
-        local scroll = is_buffer_scrolled_to_end(runner_buf_id)
-
-        vim.api.nvim_set_option_value("modifiable", true, {
-            buf = runner_buf_id,
-        })
-        --
-        local lastline = vim.api.nvim_buf_line_count(runner_buf_id)
-
-        baleia.buf_set_lines(runner_buf_id, lastline, lastline, true, lines)
-        -- vim.api.nvim_buf_set_lines(runner_buf_id, lastline, lastline, true, lines)
-        --
-        vim.api.nvim_set_option_value("modifiable", false, {
-            buf = runner_buf_id,
-        })
-
-        lines_count = lines_count + count
-
-        if scroll then
-            vim.api.nvim_buf_call(runner_buf_id, function()
-                vim.cmd("normal! G")
-            end)
-        end
-    end)
-end
 
 local current_command = ""
 local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
@@ -149,7 +24,7 @@ local run_total_time = ""
 
 local function real_time_notification()
     running = true
-    local timer = vim.loop.new_timer()
+    local timer = vim.uv.new_timer()
     local counter = 1
 
     local function update_notification()
@@ -161,22 +36,32 @@ local function real_time_notification()
             vim.api.nvim_echo({ { " " .. spinner[counter] .. " " .. current_command, "Normal" } }, false, {})
             counter = counter + 1
         else
-            if success then
-                vim.api.nvim_echo(
-                    { { "  " .. current_command .. ": done in " .. run_total_time, "DiagnosticOk" } },
-                    false,
-                    {}
-                )
+            if run_total_time:len() > 0 then
+                if success then
+                    vim.api.nvim_echo(
+                        { { "  " .. current_command .. ": done in " .. run_total_time, "DiagnosticOk" } },
+                        false,
+                        {}
+                    )
+                else
+                    vim.api.nvim_echo(
+                        { { "  " .. current_command .. ": failed in " .. run_total_time, "Error" } },
+                        false,
+                        {}
+                    )
+                end
             else
                 vim.api.nvim_echo(
-                    { { "  " .. current_command .. ": failed in " .. run_total_time, "Error" } },
+                    { { "  " .. current_command .. ": terminated", "WarningMsg" } },
                     false,
                     {}
                 )
             end
 
             timer:stop()
-            timer:close()
+            if not timer:is_closing() then
+                timer:close()
+            end
         end
     end
 
@@ -194,13 +79,18 @@ end
 
 local msg_buf = ""
 
----@param entry Tree_Entry
-function Runner.run(entry, pom_file)
+---@param entry Tree_Entry|Command
+---@param pom_file string
+---@param reset_callback fun()
+---@param append_callback fun(lines:Array)
+function Runner.run(entry, pom_file, reset_callback, append_callback)
     if entry.command == nil then
         return
     end
 
     if runner_handle ~= nil and not runner_handle:is_closing() then
+        success = false
+        run_total_time = ""
         runner_handle:kill("sigterm")
     end
     --
@@ -212,26 +102,10 @@ function Runner.run(entry, pom_file)
     --     vim.api.nvim_win_close(runner_win_id, true)
     -- end
 
-    if runner_win_id == nil then
-        create_win()
-    else
-        if runner_buf_id then
-            vim.api.nvim_set_option_value("modifiable", true, {
-                buf = runner_buf_id,
-            })
+    reset_callback()
 
-            baleia.buf_set_lines(runner_buf_id, 0, -1, true, {})
-            -- vim.api.nvim_buf_set_lines(runner_buf_id, 0, -1, true, {})
-            lines_count = 0
-
-            vim.api.nvim_set_option_value("modifiable", false, {
-                buf = runner_buf_id,
-            })
-        end
-    end
-
-    local stdout = vim.loop.new_pipe(false)
-    local stderr = vim.loop.new_pipe(false)
+    local stdout = vim.uv.new_pipe(false)
+    local stderr = vim.uv.new_pipe(false)
 
     local pipe_cmd = maven_config.runner_pipe_cmd(pom_file, { entry.command })
     current_command = entry.command
@@ -244,10 +118,12 @@ function Runner.run(entry, pom_file)
         cmd_str = cmd_str .. " " .. arg
     end
 
-    print(cmd_str)
-    append_to_buffer({ cmd_str }, 1)
+    -- print(cmd_str)
+    -- append_to_buffer({ cmd_str }, 1)
 
-    runner_handle = vim.loop.spawn(pipe_cmd.cmd, {
+    append_callback(utils.Array():append(cmd_str))
+
+    runner_handle = vim.uv.spawn(pipe_cmd.cmd, {
         args = pipe_cmd.args,
         stdio = { nil, stdout, stderr },
     }, function()
@@ -263,8 +139,8 @@ function Runner.run(entry, pom_file)
 
     local function process_data(err, data)
         if data then
-            local lines = {}
-            local data_lines_count = 0
+            local lines = utils.Array()
+            -- local data_lines_count = 0
             data = data:gsub("[\r\n|\n\r]", "\n"):gsub("\r", ""):gsub("\27%[m", "\27%[0m")
             msg_buf = msg_buf .. data
 
@@ -280,12 +156,16 @@ function Runner.run(entry, pom_file)
                             run_total_time = line:gsub(".+Total time:", ""):gsub("%s", "")
                         end
 
-                        table.insert(lines, line)
+                        -- table.insert(lines, line)
+                        lines:append(line)
 
-                        data_lines_count = data_lines_count + 1
+                        -- data_lines_count = data_lines_count + 1
                     end
                 end
-                append_to_buffer(lines, data_lines_count)
+
+                -- append_to_buffer(lines, data_lines_count)
+                append_callback(lines)
+
                 msg_buf = ""
             end
         end
@@ -295,8 +175,8 @@ function Runner.run(entry, pom_file)
         end
     end
 
-    vim.loop.read_start(stdout, process_data)
-    vim.loop.read_start(stderr, process_data)
+    vim.uv.read_start(stdout, process_data)
+    vim.uv.read_start(stderr, process_data)
 end
 
 return Runner
