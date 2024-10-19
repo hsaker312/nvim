@@ -558,8 +558,10 @@ local function get_project_info(pom_file, refresh_project_info)
 
         local linearXml = linearizeTable(pomXml.root.project)
 
-        for k, v in pairs(linearXml) do
-            print(k, v)
+        if refresh_project_info then
+            for k, v in pairs(linearXml) do
+                print(k, v)
+            end
         end
 
         local groupId = substitute(linearXml, pomXml.root.project.groupId)
@@ -622,6 +624,16 @@ local function process_project(project, refresh_project_info)
 
         entry.info = project_info
 
+        if refresh_project_info then
+            print("project info:", project.artifactId, project.groupId, project.artifactId)
+            print("maven info pom file:", Importer.Maven_Info_Pom_File[tostring(project_info)])
+            print("pom file maven info:", Importer.Pom_File_Maven_Info[Importer.Maven_Info_Pom_File[tostring(project_info)]])
+            print("pom file maven info info:", Importer.Pom_File_Maven_Info[Importer.Maven_Info_Pom_File[tostring(project_info)]].info)
+            print("pom file maven info info name:", Importer.Pom_File_Maven_Info[Importer.Maven_Info_Pom_File[tostring(project_info)]].info.name)
+            print("project artifactId", project.artifactId)
+        end
+
+        --TODO: investigate info begin null when refreshing an errored entry
         table.insert(entry.text_objs, {
             text = Importer.Pom_File_Maven_Info[Importer.Maven_Info_Pom_File[tostring(project_info)]].info.name
                 or project.artifactId,
@@ -1073,13 +1085,13 @@ end
 local function write_cache_file()
     local path = utils.Path(cwd):join(config.local_config_dir).str
     local success, _ = utils.create_directories(path)
-    print("dir created: ", success)
+    -- print("dir created: ", success)
 
     if success then
         local res_file = io.open(path .. "/cache.json", "w")
 
         if res_file then
-            print("cache file opend")
+            -- print("cache file opend")
             vim.schedule(function()
                 res_file:write(vim.fn.json_encode({
                     version = config.version,

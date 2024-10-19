@@ -208,6 +208,50 @@ local function set_main_buffer_keymaps(buf)
         noremap = true,
         silent = true,
     })
+
+    vim.api.nvim_buf_set_keymap(
+        buf,
+        "n",
+        "R",
+        "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".refresh_entry()<CR>",
+        {
+            noremap = true,
+            silent = true,
+        }
+    )
+
+    vim.api.nvim_buf_set_keymap(
+        buf,
+        "n",
+        "ep",
+        "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".show_effective_pom()<CR>",
+        {
+            noremap = true,
+            silent = true,
+        }
+    )
+
+    vim.api.nvim_buf_set_keymap(
+        buf,
+        "n",
+        "o",
+        "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".open_pom_file()<CR>",
+        {
+            noremap = true,
+            silent = true,
+        }
+    )
+
+    vim.api.nvim_buf_set_keymap(
+        buf,
+        "n",
+        "e",
+        "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".show_error()<CR>",
+        {
+            noremap = true,
+            silent = true,
+        }
+    )
     --
     -- vim.api.nvim_buf_set_keymap(buf, "n", "<2-LeftMouse>", "<Cmd>lua M.toggle_item()<CR>", {
     --     noremap = true,
@@ -857,6 +901,95 @@ function Maven_Main_Window.show_all()
     show_all = not show_all
 
     update_main_buffer()
+end
+
+function Maven_Main_Window.refresh_entry()
+    local entry = get_current_entry()
+
+    if entry == nil then
+        return
+    end
+
+    maven_importer.refresh_entry(entry)
+end
+
+function Maven_Main_Window.show_effective_pom()
+    local entry = get_current_entry()
+
+    if entry == nil then
+        return
+    end
+
+    Importer.effective_pom(entry, function(effective_pom)
+        local editor_win = utils.get_editor_window()
+
+        if editor_win ~= nil then
+            local buf = vim.api.nvim_create_buf(false, true)
+
+            vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.split(effective_pom, "\n"))
+            vim.api.nvim_win_set_buf(editor_win, buf)
+            vim.api.nvim_buf_call(buf, function()
+                vim.api.nvim_command("setfiletype xml")
+            end)
+        end
+    end)
+end
+
+function Maven_Main_Window.open_pom_file()
+    local entry = get_current_entry()
+
+    if entry == nil then
+        return
+    end
+
+    local file = maven_importer.Maven_Info_Pom_File[tostring(entry.info)] or entry.file
+
+    if file ~= nil then
+        local file_buf = utils.get_file_buffer(file)
+
+        local editor_win = utils.get_editor_window()
+
+        if editor_win ~= nil then
+            if file_buf == nil then
+                vim.api.nvim_win_call(editor_win, function()
+                    vim.api.nvim_command("edit " .. file)
+                end)
+            else
+                vim.api.nvim_win_set_buf(editor_win, file_buf)
+            end
+        end
+    end
+end
+
+function Maven_Main_Window.show_error()
+    local entry = get_current_entry()
+
+    if entry == nil or entry.file == nil or maven_importer.Pom_File_Error[entry.file] == nil then
+        return
+    end
+
+    local error_msg = vim.fn.split(maven_importer.Pom_File_Error[entry.file], "\n")
+
+    local buf = vim.api.nvim_create_buf(false, true)
+
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, error_msg)
+
+    -- local editor_win = utils.get_editor_window()
+    -- vim.api.width
+
+    local win = vim.api.nvim_open_win(buf, true, {
+        relative = "cursor",
+        row = 1,
+        col = 1,
+        width =  vim.api.nvim_get_option_value("columns", {}) - 4,
+        height = 10,
+        style = "minimal",
+        border = "rounded",
+    })
+end
+
+function Maven_Main_Window.refresh_all()
+    
 end
 
 return Maven_Main_Window

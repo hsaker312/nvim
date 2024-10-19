@@ -1,7 +1,7 @@
 return {
     "nvim-lualine/lualine.nvim",
     enabled = not vim.g.vscode,
-    dependencies = { "linux-cultist/venv-selector.nvim", "Civitasv/cmake-tools.nvim" },
+    dependencies = { "linux-cultist/venv-selector.nvim", "Civitasv/cmake-tools.nvim", "arkav/lualine-lsp-progress" },
     event = "VeryLazy",
     opts = {
         sections = {
@@ -27,31 +27,31 @@ return {
                 },
             },
             lualine_x = {
-                -- {
-                --     "lsp_progress",
-                --     fmt = function(str)
-                --         str = str:gsub("%%", "󰏰"):gsub("󰏰󰏰", "󰏰")
-                --         -- print(str)
-                --         if #str > 70 then
-                --             return str:sub(1, 70) .. "..."
-                --         else
-                --             return str
-                --         end
-                --     end,
-                --     display_components = { "lsp_client_name", "spinner", { "percentage", "message", "title" } },
-                --     timer = { progress_enddelay = 500, spinner = 500, lsp_client_name_enddelay = -1 },
-                --     separators = {
-                --         component = " ",
-                --         progress = " ",
-                --         title = { pre = " ", post = " " },
-                --         lsp_client_name = { pre = "[", post = "]" },
-                --         spinner = { pre = " ", post = " " },
-                --         message = { commenced = "", completed = "" },
-                --     },
-                --     separator = { left = "", right = "" },
-                --     color = { fg = "#FFFFFF", bg = "#3f2a54", gui = "bold" },
-                --     spinner_symbols = { "", "", "", "", "", "" },
-                -- },
+                {
+                    "lsp_progress",
+                    fmt = function(str)
+                        str = str:gsub("%%", "󰏰"):gsub("󰏰󰏰", "󰏰")
+                        -- print(str)
+                        if #str > 70 then
+                            return str:sub(1, 70) .. "..."
+                        else
+                            return str
+                        end
+                    end,
+                    display_components = { "lsp_client_name", "spinner", { "percentage", "message", "title" } },
+                    timer = { progress_enddelay = 500, spinner = 500, lsp_client_name_enddelay = -1 },
+                    separators = {
+                        component = " ",
+                        progress = " ",
+                        title = { pre = " ", post = " " },
+                        lsp_client_name = { pre = "[", post = "]" },
+                        spinner = { pre = " ", post = " " },
+                        message = { commenced = "", completed = "" },
+                    },
+                    separator = { left = "", right = "" },
+                    color = { fg = "#FFFFFF", bg = "#3f2a54", gui = "bold" },
+                    spinner_symbols = { "", "", "", "", "", "" },
+                },
                 {
                     function()
                         return " "
