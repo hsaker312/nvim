@@ -1,5 +1,5 @@
-local line_start = vim.fn.line("v")
-local get_selected_text = function()
+local function get_selected_text()
+    local line_start = vim.fn.line("v")
     local line_end = vim.fn.line(".")
     local col_start = vim.fn.col("v")
     local col_end = vim.fn.col(".")
@@ -35,6 +35,26 @@ local get_selected_text = function()
     end
 
     return selected_text, le, ce
+end
+
+--"C:\Users\saker.helmy\aws\key.private.key|5 col 7|"
+
+---@return integer
+local function get_editor_window()
+    local windows = vim.api.nvim_tabpage_list_wins(0) -- Get all windows in the current tab page
+
+    for _, win in ipairs(windows) do
+        local buf = vim.api.nvim_win_get_buf(win) -- Get the buffer associated with the window
+        local buf_name = vim.api.nvim_buf_get_name(buf) -- Get the buffer's name
+
+        if buf_name ~= nil and buf_name ~= "" then
+            if buf_name:match("[%[|%]]") == nil then
+                return win
+            end
+        end
+    end
+
+    return vim.api.nvim_get_current_win()
 end
 
 local goto_to_link = function(mouse)
@@ -88,7 +108,7 @@ local goto_to_link = function(mouse)
                 if buffer == nil then
                     vim.api.nvim_command("edit " .. path)
                 else
-                    vim.api.nvim_win_set_buf(vim.api.nvim_get_current_win(), buffer)
+                    vim.api.nvim_win_set_buf(get_editor_window(), buffer)
                 end
 
                 vim.schedule(function()

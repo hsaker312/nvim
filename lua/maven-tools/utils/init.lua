@@ -311,8 +311,6 @@ M.create_directories = function(path)
     return true
 end
 
-M.create_directories("c:/users/saker.helmy/test/tset")
-
 --- @param path? string
 --- @return Path?
 function M.Path(path)
