@@ -7,7 +7,7 @@ return {
             xml = { "xmlformatter" },
             asm = { "asmfmt" },
             python = { "black" },
-            ["*"] = { "codespell" },
+            -- ["*"] = { "codespell" },
         },
     },
 }
