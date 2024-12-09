@@ -149,7 +149,7 @@ function CMake.setup()
         { noremap = true, silent = true, desc = "CMake Debug" }
     )
 
-    vim.keymap.set("n", "<leader>cr", "<cmd> CMakeRun <CR>", { noremap = true, silent = true, desc = "CMake Run" })
+    vim.keymap.set("n", "<leader>c.r", "<cmd> CMakeRun <CR>", { noremap = true, silent = true, desc = "CMake Run" })
 
     vim.keymap.set(
         "n",
@@ -188,7 +188,7 @@ function CMake.setup()
 
     vim.keymap.set(
         "n",
-        "<leader>ch",
+        "<leader>c.h",
         "<cmd> ClangdSwitchHeaderSource <CR>",
         { noremap = true, silent = true, desc = "Switch Between Header and Source Files" }
     )

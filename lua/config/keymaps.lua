@@ -2,8 +2,9 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 --
-vim.keymap.set({ "n", "v" }, "q", "<nop>")
-vim.keymap.set({ "n", "v" }, "Q", "<nop>")
+-- vim.keymap.set({ "n", "v" }, "q", "<nop>")
+-- vim.keymap.set({ "n", "v" }, "Q", "<nop>")
+vim.keymap.set({ "n", "v" }, "L", "<nop>")
 
 require("config.keymaps.utils")
 require("config.keymaps.findReplace")

@@ -8,6 +8,7 @@ return {
             asm = { "asmfmt" },
             json = { "fixjson" },
             python = { "black" },
+            cmake = {"gersemi"}
             -- ["*"] = { "codespell" },
         },
     },

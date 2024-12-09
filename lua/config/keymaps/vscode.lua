@@ -1,4 +1,8 @@
-local vscode = require("vscode")
+local vscode, _  = pcall(require, "vscode")
+
+if type(vscode) ~= "table" then
+    return
+end
 
 
 vim.keymap.set({"n", "v"}, "<leader>bd", function()

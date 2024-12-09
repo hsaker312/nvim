@@ -50,17 +50,20 @@ local delete_selected = function()
     local le, ce = get_le_ce()
     local linelen = #vim.fn.getline(le)
 
+    local isN = vim.api.nvim_get_mode().mode == "n"
     vim.api.nvim_command("normal! x")
 
     vim.schedule(function()
         vim.fn.setreg('"', reg1)
         vim.fn.setreg("+", reg2)
 
-        if vim.api.nvim_get_mode().mode == "n" then
-            if ce >= linelen then
-                vim.api.nvim_command("startinsert!")
-            else
-                vim.api.nvim_command("startinsert")
+        if not isN then
+            if vim.api.nvim_get_mode().mode == "n" then
+                if ce >= linelen then
+                    vim.api.nvim_command("startinsert!")
+                else
+                    vim.api.nvim_command("startinsert")
+                end
             end
         end
     end)
@@ -138,9 +141,7 @@ local paste = function(reg)
             vim.api.nvim_command("normal! P")
         end
 
-        vim.api.nvim_command(
-            "call cursor(" .. tostring(ls + lines_count) .. "," .. tostring(last_line_len) .. ")"
-        )
+        vim.api.nvim_command("call cursor(" .. tostring(ls + lines_count) .. "," .. tostring(last_line_len) .. ")")
     end
 end
 
@@ -148,9 +149,9 @@ local wrap_selected = function(reg, open, close)
     surround_selected(open, close)
 
     vim.defer_fn(function()
-        vim.api.nvim_command('normal! o')
+        vim.api.nvim_command("normal! o")
         vim.api.nvim_command('normal! "ay')
-        vim.api.nvim_command('normal! h')
+        vim.api.nvim_command("normal! h")
         vim.api.nvim_command('normal! "' .. reg .. "P")
     end, 30)
 end
@@ -158,6 +159,7 @@ end
 vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
+vim.keymap.set("n", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 
 vim.keymap.set("n", "<C-x>", "V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
 vim.keymap.set("i", "<C-x>", "<esc>V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
@@ -166,12 +168,36 @@ vim.keymap.set("v", "<C-x>", "<Del>i", { noremap = true, silent = true, desc = "
 vim.keymap.set({ "n", "i" }, "<C-c>", "<esc>", { noremap = true, silent = true, desc = "Copy Line" })
 vim.keymap.set("v", "<C-c>", '"+y<esc>gv', { noremap = true, silent = true, desc = "Copy Selected" })
 
+local function setreg(reg)
+    vim.ui.input({}, function(input)
+        vim.fn.setreg(reg, input)
+    end)
+end
 vim.keymap.set("v", "<leader>0", '"0ygv', { noremap = true, silent = true, desc = "Copy To Reg 0" })
 vim.keymap.set("v", "<leader>1", '"1ygv', { noremap = true, silent = true, desc = "Copy To Reg 1" })
 vim.keymap.set("v", "<leader>2", '"2ygv', { noremap = true, silent = true, desc = "Copy To Reg 2" })
 vim.keymap.set("v", "<leader>3", '"3ygv', { noremap = true, silent = true, desc = "Copy To Reg 3" })
 vim.keymap.set("v", "<leader>4", '"4ygv', { noremap = true, silent = true, desc = "Copy To Reg 4" })
 vim.keymap.set("v", "<leader>5", '"5ygv', { noremap = true, silent = true, desc = "Copy To Reg 5" })
+
+vim.keymap.set("n", "<leader>0", function()
+    setreg("0")
+end, { noremap = true, silent = true, desc = "Set Reg 0" })
+vim.keymap.set("n", "<leader>1", function()
+    setreg("1")
+end, { noremap = true, silent = true, desc = "Copy To Reg 1" })
+vim.keymap.set("n", "<leader>2", function()
+    setreg("2")
+end, { noremap = true, silent = true, desc = "Copy To Reg 2" })
+vim.keymap.set("n", "<leader>3", function()
+    setreg("3")
+end, { noremap = true, silent = true, desc = "Copy To Reg 3" })
+vim.keymap.set("n", "<leader>4", function()
+    setreg("4")
+end, { noremap = true, silent = true, desc = "Copy To Reg 4" })
+vim.keymap.set("n", "<leader>5", function()
+    setreg("5")
+end, { noremap = true, silent = true, desc = "Copy To Reg 5" })
 
 vim.keymap.set("n", "<C-v>", function()
     local col_num = vim.fn.col(".")
@@ -292,20 +318,20 @@ end, { noremap = true, silent = true, desc = "Comment Selected" })
 
 for i = 0, 5, 1 do
     vim.keymap.set("v", "<leader>(" .. i, function()
-        wrap_selected(tostring(i), '(', ')')
-    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register()'})
+        wrap_selected(tostring(i), "(", ")")
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. "register()" })
 
     vim.keymap.set("v", "<leader>[" .. i, function()
-        wrap_selected(tostring(i), '[', ']')
-    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register[]' })
+        wrap_selected(tostring(i), "[", "]")
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. "register[]" })
 
     vim.keymap.set("v", "<leader>{" .. i, function()
-        wrap_selected(tostring(i), '{', '}')
-    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register{}' })
+        wrap_selected(tostring(i), "{", "}")
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. "register{}" })
 
     vim.keymap.set("v", "<leader>>" .. i, function()
-        wrap_selected(tostring(i), '<', '>')
-    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. 'register<>' })
+        wrap_selected(tostring(i), "<", ">")
+    end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. "register<>" })
 
     vim.keymap.set("v", '<leader>"' .. i, function()
         wrap_selected(tostring(i), '"', '"')
