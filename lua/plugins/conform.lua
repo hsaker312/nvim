@@ -7,6 +7,7 @@ return {
             xml = { "xmlformatter" },
             asm = { "asmfmt" },
             python = { "black" },
+            cmake = {"gersemi"}
             -- ["*"] = { "codespell" },
         },
     },

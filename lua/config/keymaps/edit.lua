@@ -50,17 +50,20 @@ local delete_selected = function()
     local le, ce = get_le_ce()
     local linelen = #vim.fn.getline(le)
 
+    local isN = vim.api.nvim_get_mode().mode == "n"
     vim.api.nvim_command("normal! x")
 
     vim.schedule(function()
         vim.fn.setreg('"', reg1)
         vim.fn.setreg("+", reg2)
 
-        if vim.api.nvim_get_mode().mode == "n" then
-            if ce >= linelen then
-                vim.api.nvim_command("startinsert!")
-            else
-                vim.api.nvim_command("startinsert")
+        if not isN then
+            if vim.api.nvim_get_mode().mode == "n" then
+                if ce >= linelen then
+                    vim.api.nvim_command("startinsert!")
+                else
+                    vim.api.nvim_command("startinsert")
+                end
             end
         end
     end)
@@ -156,6 +159,7 @@ end
 vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
+vim.keymap.set("n", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 
 vim.keymap.set("n", "<C-x>", "V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
 vim.keymap.set("i", "<C-x>", "<esc>V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
