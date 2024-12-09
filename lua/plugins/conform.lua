@@ -6,6 +6,7 @@ return {
             cpp = { "clang_format" },
             xml = { "xmlformatter" },
             asm = { "asmfmt" },
+            json = { "fixjson" },
             python = { "black" },
             -- ["*"] = { "codespell" },
         },
