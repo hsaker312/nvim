@@ -390,7 +390,9 @@ vim.keymap.set(
 vim.keymap.set(
     "n",
     "<leader>cp",
-    require("diagnostics-details").show,
+    function ()
+        require("diagnostics-details").show()
+    end,
     { noremap = true, silent = true, desc = "Show Detailed Diagnostics" }
 )
 
