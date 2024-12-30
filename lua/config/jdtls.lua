@@ -1,3 +1,5 @@
+local jdtls = require("jdtls")
+
 local function get_jdtls()
     -- Get the Mason Registry to gain access to downloaded binaries
     local mason_registry = require("mason-registry")
@@ -19,8 +21,6 @@ local function get_jdtls()
     local lombok = jdtls_path .. "/lombok.jar"
     return launcher, config, lombok
 end
-
-print(get_jdtls())
 
 local function get_bundles()
     -- Get the Mason Registry to gain access to downloaded binaries
@@ -223,10 +223,23 @@ local function get_class_paths(cwd, paths)
     -- return res
 end
 
+local function get_root()
+    local path = vim.uv.cwd() .. "/.nvim/jdtls.json"
+    local res_file = io.open(path, "r")
+
+    if res_file then
+        local res_str = res_file:read("*a")
+        res_file:close()
+        local json = vim.fn.json_decode(res_str)
+        return vim.uv.cwd() .. "/" .. json.root
+    end
+
+    return jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
+end
+
 local function setup_jdtls()
     -- print(get_class_paths())
-    -- Get access to the jdtls plugin and all of its functionality
-    local jdtls = require("jdtls")
+    -- Get access to the jdtls plugin and all of its functionality 
 
     -- Get the paths to the jdtls jar, operating specific configuration directory, and lombok jar
     local launcher, os_config, lombok = get_jdtls()
@@ -239,7 +252,8 @@ local function setup_jdtls()
 
     -- Determine the root directory of the project by looking for these specific markers
     -- local root_dir = jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
-    local root_dir = jdtls.setup.find_root({ ".jdtls" })
+    -- local root_dir = jdtls.setup.find_root({ ".jdtls" }) .. get_root()
+    local root_dir = get_root()
 
     -- Tell our JDTLS language features it is capable of
     local capabilities = {
@@ -253,9 +267,10 @@ local function setup_jdtls()
         },
     }
 
-    local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
+    local lsp_capabilities = require("blink-cmp").get_lsp_capabilities({}, true)
 
     for k, v in pairs(lsp_capabilities) do
+        -- print(k, v)
         capabilities[k] = v
     end
 

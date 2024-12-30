@@ -349,6 +349,13 @@ vim.keymap.set(
     vim.lsp.buf.code_action,
     { noremap = true, silent = true, desc = "Lsp Code Action" }
 )
+
+vim.keymap.set(
+    "n",
+    "<leader>ca",
+    vim.lsp.buf.code_action,
+    { noremap = true, silent = true, desc = "Lsp Code Action" }
+)
 vim.keymap.set("n", "<leader>cd", vim.lsp.buf.definition, { noremap = true, silent = true, desc = "Go To Definition" })
 vim.keymap.set(
     "n",
