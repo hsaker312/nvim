@@ -348,39 +348,14 @@ vim.keymap.set("n", "<CR>", function()
     local line_len = #vim.fn.getline(line_num)
 
     if col_num < line_len then
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("i<CR>", true, true, true), "t", true)
+        vim.cmd('execute "normal! a\r"')
+        vim.cmd('startinsert')
+        vim.cmd('normal! l')
     else
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("a<CR>", true, true, true), "t", true)
+        vim.cmd('execute "normal! a\r"')
+        vim.cmd('startinsert')
     end
 end, { noremap = true, silent = true, desc = "New Line" })
-
--- local keys = "qwertyuopasdfghjkl;zxcvbnm,.QWERTYUIOPASDFGHJKLZXCVBNM?1234567890-=~!@#$%^&*_+"
--- local vis = false
---
--- for i = 1, #keys do
---     local key = keys:sub(i, i)
---
---     vim.keymap.set("v", "@" .. key, key)
---
---     vim.keymap.set("v", key, function()
---         if vis then
---             vim.api.nvim_feedkeys("@" .. key, "", true)
---         else
---             local line_start = vim.fn.line("v")
---             local line_end = vim.fn.line(".")
---             local col_start = vim.fn.col("v")
---             local col_end = vim.fn.col(".")
---
---             if line_start ~= line_end or col_start ~= col_end then
---                 delete_selected()
---
---                 vim.defer_fn(function()
---                     vim.api.nvim_feedkeys(key, "", true)
---                 end, 10)
---             end
---         end
---     end, { noremap = true, silent = true, desc = "Replace Selected With " .. key })
--- end
 
 vim.keymap.set("v", "<CR>", function()
     local line_start = vim.fn.line("v")
