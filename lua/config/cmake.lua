@@ -192,6 +192,7 @@ function CMake.setup()
         "<cmd> ClangdSwitchHeaderSource <CR>",
         { noremap = true, silent = true, desc = "Switch Between Header and Source Files" }
     )
+
 end
 
 return CMake

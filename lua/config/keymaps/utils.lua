@@ -218,7 +218,11 @@ vim.keymap.set("i", "<esc>v:m '>+1<CR>gv=gv<esc>a", "<A-j>", { noremap = true, s
 vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv", { noremap = true, silent = true, desc = "Move Line Down" })
 
 vim.keymap.set({ "n", "i", "v" }, "<C-z>", "<cmd>undo<CR>", { noremap = true, silent = true, desc = "Undo" })
-vim.keymap.set({ "n", "i", "v" }, "<C-y>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
+vim.keymap.set({ "n", "v", "i" }, "<C-r>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
+vim.keymap.set({ "n", "v", "i" }, "<C-y>", function ()
+    print("use C-r")
+end, { noremap = true, silent = true, desc = "Redo" })
+-- vim.keymap.set("i", "<C-r>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
 
 vim.keymap.set("n", "<S-right>", "v<right>", { noremap = true, silent = true, desc = "Select Text" })
 vim.keymap.set("i", "<S-right>", "<right><esc>v<right>", { noremap = true, silent = true, desc = "Select Text" })
@@ -350,12 +354,7 @@ vim.keymap.set(
     { noremap = true, silent = true, desc = "Lsp Code Action" }
 )
 
-vim.keymap.set(
-    "n",
-    "<leader>ca",
-    vim.lsp.buf.code_action,
-    { noremap = true, silent = true, desc = "Lsp Code Action" }
-)
+vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { noremap = true, silent = true, desc = "Lsp Code Action" })
 vim.keymap.set("n", "<leader>cd", vim.lsp.buf.definition, { noremap = true, silent = true, desc = "Go To Definition" })
 vim.keymap.set(
     "n",
@@ -394,14 +393,9 @@ vim.keymap.set(
     vim.lsp.buf.references,
     { noremap = true, silent = true, desc = "Find Symbol References" }
 )
-vim.keymap.set(
-    "n",
-    "<leader>cp",
-    function ()
-        require("diagnostics-details").show()
-    end,
-    { noremap = true, silent = true, desc = "Show Detailed Diagnostics" }
-)
+vim.keymap.set("n", "<leader>cp", function()
+    require("diagnostics-details").show()
+end, { noremap = true, silent = true, desc = "Show Detailed Diagnostics" })
 
 vim.keymap.set(
     "n",

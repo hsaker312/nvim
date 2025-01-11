@@ -119,22 +119,24 @@ local replace_selected = function()
 end
 
 vim.keymap.set("n", "<C-f>", function()
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("/", true, true, true), "", true)
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(Current_find_str, true, true, true), "", true)
-end, { noremap = true, silent = true, desc = "Find (Case-Insensitive)" })
-vim.keymap.set("i", "<C-f>", "<esc>/", { noremap = true, silent = true, desc = "Find (Case-Insensitive)" })
-vim.keymap.set("v", "<C-f>", function ()
-    find_selected(false)
-end, { noremap = true, silent = true, desc = "Find (Case-Insensitive)" })
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("/<up>", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Find" })
 
-vim.keymap.set("n", "<A-C-F>", function()
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("/\\C", true, true, true), "", true)
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(Current_find_str, true, true, true), "", true)
-end, { noremap = true, silent = true, desc = "Find (Case-Sensitive)" })
-vim.keymap.set("i", "<A-C-F>", "<esc>/\\C", { noremap = true, silent = true, desc = "Find (Case-Sensitive)" })
-vim.keymap.set("v", "<A-C-F>", function ()
-    find_selected(true)
-end, { noremap = true, silent = true, desc = "Find (Case-Sensitive)" })
+vim.keymap.set("i", "<C-f>", "<cmd>normal! /<cr>", { noremap = true, silent = true, desc = "Find" })
+
+vim.keymap.set("v", "<C-f>", function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("*", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Find" })
+
+vim.keymap.set("n", "<A-C-f>", function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("?<up>", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Find" })
+
+vim.keymap.set("i", "<A-C-f>", "<cmd>normal! ?<cr>", { noremap = true, silent = true, desc = "Find" })
+
+vim.keymap.set("v", "<A-C-f>", function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("#", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Find" })
 
 vim.keymap.set(
     "v",
