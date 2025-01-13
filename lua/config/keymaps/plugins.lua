@@ -70,7 +70,9 @@ vim.keymap.set(
 vim.keymap.set(
     "n",
     "<leader>bm",
-    require("bookmarks").bookmark_toggle,
+    function()
+        require("bookmarks").bookmark_toggle()
+    end,
     { noremap = true, silent = true, desc = "Toggle Bookmarks" }
 )
 
