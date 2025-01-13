@@ -1,6 +1,6 @@
 return {
     "Weissle/persistent-breakpoints.nvim",
-    enabled = not vim.g.vscode,
+    enabled = not vim.g.lite,
     config = function()
         require("persistent-breakpoints").setup({
             save_dir = vim.loop.cwd() .. "/.nvim/breakpoints",

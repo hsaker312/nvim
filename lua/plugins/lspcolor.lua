@@ -1,7 +1,7 @@
 return {
     {
         "folke/lsp-colors.nvim",
-        enabled = not vim.g.vscode,
+        enabled = not vim.g.lite,
         -- enabled = false,
         config = function()
             require("lsp-colors").setup({

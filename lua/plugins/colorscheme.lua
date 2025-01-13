@@ -14,7 +14,7 @@ return {
 --
 -- return {
 --     "catppuccin/nvim",
---     enabled = not vim.g.vscode,
+--     enabled = not vim.g.lite,
 --     priority = 1000,
 --     opts = {
 --         transparent_background = true,

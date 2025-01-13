@@ -30,7 +30,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
     end,
 })
 
-if not vim.g.vscode then
+if not vim.g.lite then
     vim.api.nvim_create_autocmd("VimLeavePre", {
         callback = function()
             local homeDir = os.getenv("HOME") or os.getenv("USERPROFILE")

@@ -28,7 +28,7 @@ vim.opt.backup = false
 vim.opt.undodir = vim.env.HOME .. "/.nvim/undodir"
 vim.opt.undofile = true
 
-if not vim.g.vscode then
+if not vim.g.lite then
     vim.api.nvim_create_user_command("EnableCMake", require("config.cmake").setup, {})
 
     local codelldb_path = require("mason-registry").get_package("codelldb"):get_install_path() .. "/extension"
@@ -165,7 +165,7 @@ if not vim.g.vscode then
     end
 end
 
-if not vim.g.vscode then
+if not vim.g.lite then
     vim.schedule(function()
         if io.open(vim.loop.cwd() .. "/.nvim/init.lua", "r") ~= nil then
             vim.api.nvim_command("source " .. vim.loop.cwd() .. "/.nvim/init.lua")

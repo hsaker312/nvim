@@ -1,6 +1,6 @@
 return {
     "codota/tabnine-nvim",
-    enabled = not vim.g.vscode,
+    enabled = not vim.g.lite,
     build = ".\\dl_binaries.ps1",
     config = function()
         require("tabnine").setup({

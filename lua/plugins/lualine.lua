@@ -1,6 +1,6 @@
 return {
     "nvim-lualine/lualine.nvim",
-    enabled = not vim.g.vscode,
+    enabled = not vim.g.lite,
     dependencies = { "linux-cultist/venv-selector.nvim", "Civitasv/cmake-tools.nvim", "arkav/lualine-lsp-progress" },
     event = "VeryLazy",
     opts = {

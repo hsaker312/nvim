@@ -3,7 +3,7 @@ return {
     -- LSP Configuration
     -- https://github.com/neovim/nvim-lspconfig
     "neovim/nvim-lspconfig",
-    enabled = not vim.g.vscode,
+    enabled = not vim.g.lite,
     event = "VeryLazy",
     dependencies = {
         -- LSP Management

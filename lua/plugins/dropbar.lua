@@ -1,7 +1,7 @@
 return {
   {
     "Bekaboo/dropbar.nvim",
-    enabled = not vim.g.vscode,
+    enabled = not vim.g.lite,
     -- enabled = false,
     -- optional, but required for fuzzy finder support
     dependencies = {

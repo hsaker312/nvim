@@ -1,6 +1,6 @@
 return {
     "theHamsta/nvim-dap-virtual-text",
-    enabled = not vim.g.vscode,
+    enabled = not vim.g.lite,
     config = function()
         require("nvim-dap-virtual-text").setup({
             enabled = true, -- enable this plugin (the default)
