@@ -142,12 +142,12 @@ function CMake.setup()
 
     vim.keymap.set("n", "<leader>cb", "<cmd> CMakeBuild <CR>", { noremap = true, silent = true, desc = "CMake Build" })
 
-    vim.keymap.set(
-        "n",
-        "<leader>c<leader>",
-        "<cmd> CMakeDebug <CR>",
-        { noremap = true, silent = true, desc = "CMake Debug" }
-    )
+    -- vim.keymap.set(
+    --     "n",
+    --     "<leader>c<leader>",
+    --     "<cmd> CMakeDebug <CR>",
+    --     { noremap = true, silent = true, desc = "CMake Debug" }
+    -- )
 
     vim.keymap.set("n", "<leader>c.r", "<cmd> CMakeRun <CR>", { noremap = true, silent = true, desc = "CMake Run" })
 

@@ -73,6 +73,12 @@ if not vim.g.lite then
         },
     }
 
+    dap.adapters.lldb_mi = {
+        type = "executable",
+        command = "/usr/bin/lldb-mi", -- Replace with the path to lldb-mi
+        name = "lldb-mi",
+    }
+
     dap.adapters.python = function(cb, config)
         if config.request == "attach" then
             ---@diagnostic disable-next-line: undefined-field
