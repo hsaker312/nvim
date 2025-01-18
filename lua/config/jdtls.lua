@@ -11,7 +11,7 @@ local function get_jdtls()
     local launcher = vim.fn.glob(jdtls_path .. "/plugins/org.eclipse.equinox.launcher_*.jar")
     -- Obtain the path to configuration files for your specific operating system
     local jdtls_config = ""
-    if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+    if vim.g.windows then
         jdtls_config = "/config_win"
     else
         jdtls_config = "/config_linux"

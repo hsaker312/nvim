@@ -13,4 +13,6 @@ if type(config_path) == "string" then
     end
 end
 
+vim.g.windows = package.cpath:match("%p[\\|/]?%p(%a+)") == "dll"
+
 require("config.lazy")

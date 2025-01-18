@@ -143,6 +143,14 @@ vim.keymap.set("n", "[<", "va<o<esc>", { noremap = true, silent = true, desc = "
 vim.keymap.set("n", "]'", "va'<esc>", { noremap = true, silent = true, desc = "Next '" })
 vim.keymap.set("n", "['", "va'o<esc>", { noremap = true, silent = true, desc = "Perv '" })
 
+vim.keymap.set("n", "]]", function ()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("vieo<esc>l", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Next '" })
+
+vim.keymap.set("n", "[[", function ()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("hvie<esc>", true, true, true), "", true)
+end, { noremap = true, silent = true, desc = "Next '" })
+
 vim.keymap.set("n", "]a", function()
     local line_num = vim.fn.line(".")
     local col_num = vim.fn.col(".")

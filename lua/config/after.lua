@@ -153,7 +153,7 @@ if not vim.g.lite then
     require("conform").formatters.xmlformatter = function(bufnr)
         local home = vim.env.HOME
 
-        if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+        if vim.g.windows then
             return {
                 command = require("conform.util").find_executable({
                     home .. "/AppData/Local/nvim-data/mason/bin/xmlformat.cmd",

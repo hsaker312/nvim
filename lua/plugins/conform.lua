@@ -3,6 +3,7 @@ return {
     opts = {
         formatters_by_ft = {
             lua = { "stylua" },
+            c = { "clang_format" },
             cpp = { "clang_format" },
             xml = { "xmlformatter" },
             asm = { "asmfmt" },
