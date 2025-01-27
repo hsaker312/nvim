@@ -21,13 +21,39 @@ return {
         dap.listeners.before.event_exited.dapui_config = function()
             dapui.close()
         end
+        -- vim.fn.sign_define(
+        --     "DapBreakpoint",
+        --     { text = "🔴", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
+        -- )
+        -- vim.fn.sign_define("DapBreakpoint", { text = " ", texthl = "red", linehl = "", numhl = "" })
+        -- vim.fn.sign_define(
+        --     "DapStopped",
+        --     { text = "⏸️", texthl = "DapStopped", linehl = "DapStopped", numhl = "DapStopped" }
+        -- )
+
+        vim.api.nvim_set_hl(0, "DapBreakpoint", { fg = "#db5427" })
+        vim.api.nvim_set_hl(0, "DapLogPoint", { fg = "#db5427" })
+        vim.api.nvim_set_hl(0, "DapStopped", { bg = "#211414" })
+
         vim.fn.sign_define(
             "DapBreakpoint",
-            { text = "🔴", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
+            { text = " ", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
+        )
+        vim.fn.sign_define(
+            "DapBreakpointCondition",
+            { text = " ", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
+        )
+        vim.fn.sign_define(
+            "DapBreakpointRejected",
+            { text = " ", texthl = "DapBreakpoint", linehl = "DapBreakpoint", numhl = "DapBreakpoint" }
+        )
+        vim.fn.sign_define(
+            "DapLogPoint",
+            { text = " ", texthl = "DapLogPoint", linehl = "DapLogPoint", numhl = "DapLogPoint" }
         )
         vim.fn.sign_define(
             "DapStopped",
-            { text = "⏸️", texthl = "DapStopped", linehl = "DapStopped", numhl = "DapStopped" }
+            { text = " ", texthl = "DapStopped", linehl = "DapStopped", numhl = "DapStopped" }
         )
     end,
 }
