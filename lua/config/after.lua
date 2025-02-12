@@ -178,7 +178,7 @@ if not vim.g.lite then
         end
 
         vim.schedule(require("persistence").load)
-        -- vim.cmd.colorscheme("catppuccin-mocha")
+        vim.cmd.colorscheme("catppuccin-mocha")
     end)
     require("maven-tools").setup()
 end
