@@ -349,11 +349,11 @@ vim.keymap.set("n", "<CR>", function()
 
     if col_num < line_len then
         vim.cmd('execute "normal! a\r"')
-        vim.cmd('startinsert')
-        vim.cmd('normal! l')
+        vim.cmd("startinsert")
+        vim.cmd("normal! l")
     else
         vim.cmd('execute "normal! a\r"')
-        vim.cmd('startinsert')
+        vim.cmd("startinsert")
     end
 end, { noremap = true, silent = true, desc = "New Line" })
 
@@ -694,3 +694,12 @@ vim.keymap.set("n", "<esc>", function()
     Pasting = false
     vim.api.nvim_command("nohlsearch")
 end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
+
+vim.keymap.set("n", "<leader>y", function()
+    if vim.g.windows then
+        local str = vim.fn.getreg("+")
+        vim.cmd("set shell=cmd")
+        local c = "!ssh -i ~/.ssh/linux-pc -p 2277 helmy@192.168.0.3 \"echo '" .. str .. "' | wl-copy 2>/dev/null\""
+        vim.cmd(c)
+    end
+end)
