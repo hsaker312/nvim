@@ -907,11 +907,13 @@ local function select_package_version(groupId, artifactId, callback, start)
     end
 
     fetch_url(
-        'https://search.maven.org/solrsearch/select?q=g:"'
+        "https://search.maven.org/solrsearch/select?q=g:%22"
             .. groupId
-            .. '"+AND+a:"'
+            .. "%22+AND+a:%22"
             .. artifactId
-            .. '"&rows="..tostring(request_rows).."&core=gav&start='
+            .. "%22&rows="
+            .. tostring(request_rows)
+            .. "&core=gav&start="
             .. tostring(start)
             .. "&wt=json",
         function(content, err)
