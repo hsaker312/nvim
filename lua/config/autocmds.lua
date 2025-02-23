@@ -25,7 +25,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
         if vim.g.vscode then
             -- require("vscode").action("workbench.action.files.save")
         else
-            vim.api.nvim_command("wa")
+            -- vim.api.nvim_command("wa")
         end
     end,
 })

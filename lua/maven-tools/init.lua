@@ -1,9 +1,13 @@
-M = {}
+---@class MavenTools
+Maven_Tools = {}
 
 local prefix = "maven-tools."
 
----@type Config
+---@type MavenToolsConfig
 local config = require(prefix .. "config.config")
+
+---@type MavenConfig
+local maven_config = require(prefix .. "config.maven")
 
 ---@type Utils
 local utils = require(prefix .. "utils")
@@ -21,23 +25,20 @@ local utils = require(prefix .. "utils")
 
 --
 
-
----@type Maven_Importer
+---@type MavenImporter
 local maven_importer = require(prefix .. "maven.importer")
 
 local main_win = vim.api.nvim_get_current_win()
 
-
-M.show_win = function()
+Maven_Tools.show_win = function()
     if maven_win == nil and maven_buf ~= nil then
         maven_win = create_tree_window(maven_buf)
     end
 end
 
+Maven_Tools.update_test = update_buf
 
-M.update_test = update_buf
-
-M.test = function()
+Maven_Tools.test = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
@@ -48,7 +49,7 @@ M.test = function()
     end
 end
 
-M.open_pom_file = function()
+Maven_Tools.open_pom_file = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
@@ -62,7 +63,7 @@ M.open_pom_file = function()
             --     print(tostring(x.info))
             -- end
             --
-            local file = maven_importer.Maven_Info_Pom_File[tostring(v.item.info)] or v.item.file
+            local file = maven_importer.mavenInfoPomFile[tostring(v.item.info)] or v.item.file
 
             if file ~= nil then
                 local file_buf = utils.get_file_buffer(file)
@@ -99,25 +100,25 @@ M.open_pom_file = function()
     end
 end
 
-M.show_error = function()
+Maven_Tools.show_error = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
         if line >= v.first and line <= v.last then
             if v.item.file ~= nil then
-                print(maven_importer.Pom_File_Error[v.item.file])
+                print(maven_importer.pomFileError[v.item.file])
             end
             break
         end
     end
 end
 
-M.show_effective_pom = function()
+Maven_Tools.show_effective_pom = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
         if line >= v.first and line <= v.last then
-            Importer.effective_pom(v.item, function(effective_pom)
+            MavenToolsImporter.effective_pom(v.item, function(effective_pom)
                 local buf = vim.api.nvim_create_buf(false, true)
                 vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.split(effective_pom, "\n"))
                 vim.api.nvim_win_set_buf(main_win, buf)
@@ -130,43 +131,107 @@ M.show_effective_pom = function()
     end
 end
 
-function M.filter()
-    filter = vim.fn.input("Filter: ")
-    update_buf()
-end
-
-
--- Function to toggle expand/collapse
--- function M.toggle_item_at(index)
---     tree[index].expanded = not tree[index].expanded
---     -- Update the tree buffer content
---     local buf = create_tree_buffer()
---     -- Get the current window and update its buffer
---     local win = vim.api.nvim_get_current_win()
---     vim.api.nvim_win_set_buf(win, buf)
---
---     vim.api.nvim_command('syntax region @label start="" end=" "')
---     vim.api.nvim_command('syntax region @label start="" end="$"')
--- end
---
---
-local function toggle()
-    main_win = vim.api.nvim_get_current_win()
-    -- maven_buf = create_tree_buffer()
-    -- maven_win = create_tree_window(maven_buf)
-    -- maven_importer.make_tree_mp(update_buf)
-    -- maven_importer.process_pom_files("/home/helmy/ssd/1tbnvmebackup/work/atoms-software-suite", update_buf)
-
-    -- maven_importer.process_pom_files(vim.loop.cwd(), update_buf)
+function Maven_Tools.toggle_()
     require("maven-tools.ui.main"):start()
-
-    
-
-    vim.api.nvim_create_user_command("MavenShow", M.show_win, {}) 
 end
 
-function M.setup()
-    vim.api.nvim_create_user_command("MavenToolsToggle", toggle, {})
+local function toggle()
+    require("maven-tools.ui.main"):start()
 end
 
-return M
+---@class MavenToolsConfigOpts
+---@field recursive_pom_search boolean|nil
+---@field multiproject boolean|nil
+---@field refresh_on_startup boolean|nil
+---@field auto_refresh boolean|nil
+---@field local_config_dir boolean|nil
+---@field max_parallel_jobs boolean|nil
+---@field ignore_files boolean|nil
+---@field default_filter string|nil
+---@field lifecycle_commands string[]|nil
+
+---@class MavenToolsMavenOpts
+---@field prefer_maven_wrapper boolean|nil
+---@field checksum_policy "strict"|"lax"|nil
+---@field check_plugin_updates boolean|nil
+---@field encrypt_master_password string|nil
+---@field encrypt_password string|nil
+---@field global_settings string|nil
+---@field global_toolchains string|nil
+---@field ignore_transitive_repositories string|nil
+---@field settings string|nil
+---@field toolchains string|nil
+---@field non_recursive boolean|nil
+---@field no_plugin_registry boolean|nil
+---@field plugin_updates boolean|nil
+---@field snapshot_updates boolean|nil
+---@field offline boolean|nil
+---@field activate_profiles string|nil
+---@field also_make boolean|nil
+---@field also_make_dependents boolean|nil
+---@field threads integer|nil
+---@field builder string|nil
+---@field fail_policy "never"|"fast"|"end"|nil
+---@field no_transfer_progress boolean|nil
+---@field errors boolean|nil
+---@field quiet boolean|nil
+---@field debug boolean|nil
+---@field importer_jdk string|nil
+---@field runner_jdk string|nil
+---@field importer_options string[]|nil
+---@field runner_options string[]|nil
+
+---@class MavenToolsOpts
+---@field config MavenToolsConfigOpts|nil
+---@field maven MavenToolsMavenOpts|nil
+
+---@param opts MavenToolsOpts|nil
+local function configure(opts)
+    if opts == nil or type(opts) ~= "table" then
+        return
+    end
+
+    if opts.config ~= nil and type(opts.config) == "table" then
+        for k, v in pairs(opts.config) do
+            config[k] = v
+        end
+    end
+
+    if opts.maven ~= nil and type(opts.maven) == "table" then
+        for k, v in pairs(opts.maven) do
+            maven_config[k] = v
+        end
+    end
+
+    maven_config.update()
+end
+
+---@param opts MavenToolsOpts
+function Maven_Tools.override(opts)
+    configure(opts)
+end
+
+---@param opts MavenToolsOpts|nil
+function Maven_Tools.setup(opts)
+    vim.g.MavernTools = Maven_Tools
+
+    vim.schedule(function()
+        configure(opts)
+
+        vim.schedule(function()
+            local local_config_path = vim.loop.cwd() .. "/" .. config.local_config_dir .. "/maven.lua"
+
+            if io.open(local_config_path, "r") ~= nil then
+                vim.api.nvim_command("source " .. local_config_path)
+            end
+
+            vim.schedule(function()
+                vim.api.nvim_create_user_command("MavenToolsToggle", toggle, {})
+            end)
+        end)
+    end)
+
+    return Maven_Tools
+end
+
+return Maven_Tools

@@ -237,23 +237,25 @@ local function get_root()
     return jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
 end
 
+local launcher, os_config, lombok = get_jdtls()
+local workspace_dir = get_workspace()
+local bundles = get_bundles()
+local root_dir = get_root()
+local runtimes = get_runtimes()
+
 local function setup_jdtls()
     -- print(get_class_paths())
     -- Get access to the jdtls plugin and all of its functionality 
 
     -- Get the paths to the jdtls jar, operating specific configuration directory, and lombok jar
-    local launcher, os_config, lombok = get_jdtls()
 
     -- Get the path you specified to hold project information
-    local workspace_dir = get_workspace()
 
     -- Get the bundles list with the jars to the debug adapter, and testing adapters
-    local bundles = get_bundles()
 
     -- Determine the root directory of the project by looking for these specific markers
     -- local root_dir = jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
     -- local root_dir = jdtls.setup.find_root({ ".jdtls" }) .. get_root()
-    local root_dir = get_root()
 
     -- Tell our JDTLS language features it is capable of
     local capabilities = {
@@ -281,7 +283,7 @@ local function setup_jdtls()
 
     -- Set the command that starts the JDTLS language server jar
     local cmd = {
-        "java",
+        "C:/Users/saker.helmy/.jdks/openjdk-23.0.2/bin/java.exe",
         "-Declipse.application=org.eclipse.jdt.ls.core.id1",
         "-Dosgi.bundles.defaultStartLevel=4",
         "-Declipse.product=org.eclipse.jdt.ls.core.product",
@@ -396,7 +398,7 @@ local function setup_jdtls()
             -- If changes to the project will require the developer to update the projects configuration advise the developer before accepting the change
             configuration = {
                 updateBuildConfiguration = "interactive",
-                runtimes = get_runtimes(),
+                runtimes = runtimes,
             },
             -- enable code lens in the lsp
             referencesCodeLens = {

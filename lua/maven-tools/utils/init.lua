@@ -1,9 +1,9 @@
 ---@class Utils
-M = {}
+MavenToolsUtils = {}
 
 local prefix = "maven-tools."
 
----@type Config
+---@type MavenToolsConfig
 local config = require(prefix .. "config.config")
 
 local gpairs = pairs
@@ -42,7 +42,7 @@ end
 ---@param t1 T[]
 ---@param t2 T[]
 ---@return T[]
-function M.array_join(t1, t2)
+function MavenToolsUtils.array_join(t1, t2)
     local res = {}
 
     for _, v in ipairs(t1) do
@@ -56,7 +56,7 @@ function M.array_join(t1, t2)
     return res
 end
 
-function M.table_join(t1, t2)
+function MavenToolsUtils.table_join(t1, t2)
     local res = {}
 
     for k, v in pairs(t1) do
@@ -72,7 +72,7 @@ end
 
 ---@param file string
 ---@return integer?
-function M.get_file_buffer(file)
+function MavenToolsUtils.get_file_buffer(file)
     local buffers = vim.api.nvim_list_bufs() -- Get a list of all buffer numbers
 
     for _, buf in ipairs(buffers) do
@@ -85,7 +85,7 @@ function M.get_file_buffer(file)
 end
 
 ---@return integer|nil
-function M.get_editor_window()
+function MavenToolsUtils.get_editor_window()
     local windows = vim.api.nvim_tabpage_list_wins(0) -- Get all windows in the current tab page
 
     for _, win in ipairs(windows) do
@@ -105,7 +105,7 @@ end
 
 ---@param ary table|nil
 --- @return Array
-function M.Array(ary)
+function MavenToolsUtils.Array(ary)
     ---@class Array
     ---@field private _size integer
     ---@field private _values any[]
@@ -256,13 +256,13 @@ end
 
 ---@param str string
 ---@return string
-function M.str_checksum(str)
+function MavenToolsUtils.str_checksum(str)
     return string.format("%08X", crc32(str))
 end
 
 --- @param filepath string
 --- @return string?
-M.file_checksum = function(filepath)
+MavenToolsUtils.file_checksum = function(filepath)
     local file = io.open(filepath, "rb")
 
     if not file then
@@ -277,13 +277,13 @@ end
 
 --- @param path string
 --- @return boolean
-M.create_directories = function(path)
+MavenToolsUtils.create_directories = function(path)
     -- Normalize the path to ensure it does not end with a '/'
     local normalized_path = path:gsub("/$", "")
 
     -- Split the path into individual directories
     local current_path = "/"
-    if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+    if config.OS == "Windows" then
         current_path = normalized_path:match("^%s*.:/")
         if current_path then
             normalized_path = normalized_path:gsub(current_path, "")
@@ -313,7 +313,7 @@ end
 
 --- @param path? string
 --- @return Path?
-function M.Path(path)
+function MavenToolsUtils.Path(path)
     --- @class Path
     local obj = {}
 
@@ -390,7 +390,7 @@ function M.Path(path)
     --- @return string?
     function obj.checksum(self)
         if self:is_file() then
-            return M.file_checksum(self.str)
+            return MavenToolsUtils.file_checksum(self.str)
         end
     end
 
@@ -398,7 +398,7 @@ function M.Path(path)
     --- @return boolean
     function obj.create_dir(self)
         if not self:is_file() then
-            return M.create_directories(self.str)
+            return MavenToolsUtils.create_directories(self.str)
         end
 
         return false
@@ -429,7 +429,7 @@ function M.Path(path)
 end
 
 --- @return Queue
-function M.Queue()
+function MavenToolsUtils.Queue()
     --- @class Queue
     local queue = {}
 
@@ -481,7 +481,7 @@ end
 -- end
 
 local function is_ignored(file)
-    for _, ignore_file in ipairs(Config.ignore_files) do
+    for _, ignore_file in ipairs(config.ignore_files) do
         if tostring(file):match(ignore_file) then
             return true
         end
@@ -492,7 +492,7 @@ end
 
 --- @param directory string|Path
 --- @return Array?
-M.find_pom_files = function(directory)
+MavenToolsUtils.find_pom_files = function(directory)
     ---@type Array
     local pom_files = require(prefix .. "utils").Array()
     ---@type Queue
@@ -537,7 +537,7 @@ M.find_pom_files = function(directory)
     return pom_files
 end
 
-function M.deepcopy(orig)
+function MavenToolsUtils.deepcopy(orig)
     local orig_type = type(orig)
     local copy
     if orig_type == "table" then
@@ -556,7 +556,7 @@ end
 --- @param function_name string
 --- @param arg table
 --- @return Proc_Info
-function M.Proc_Info(module_name, function_name, arg)
+function MavenToolsUtils.Proc_Info(module_name, function_name, arg)
     --- @class Proc_Info
     local proc_info = {}
 
@@ -574,7 +574,7 @@ function M.Proc_Info(module_name, function_name, arg)
 end
 
 --- @return Task_Mgr
-function M.Task_Mgr()
+function MavenToolsUtils.Task_Mgr()
     --- @class Running_Task
     --- @field handle uv_process_t?
     --- @field stdout uv_pipe_t?
@@ -716,4 +716,4 @@ function M.Task_Mgr()
     return task_manager
 end
 
-return M
+return MavenToolsUtils

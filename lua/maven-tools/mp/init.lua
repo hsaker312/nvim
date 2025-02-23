@@ -1,6 +1,6 @@
-M = {}
+MavenToolsUtils = {}
 
-M._offload_mp = function(res_path, proc_info)
+MavenToolsUtils._offload_mp = function(res_path, proc_info)
     local module_name = proc_info.module_name
     local function_name = proc_info.function_name
     local arg = proc_info.arg
@@ -27,4 +27,4 @@ M._offload_mp = function(res_path, proc_info)
     os.exit()
 end
 
-return M
+return MavenToolsUtils

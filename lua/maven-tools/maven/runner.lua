@@ -1,12 +1,12 @@
 ---@class Command
 ---@field command string
 
----@class Maven_Runner
-Runner = {}
+---@class MavenRunner
+Maven_Tools_Runner = {}
 
 local prefix = "maven-tools."
 
----@type Maven_Config
+---@type MavenConfig
 local maven_config = require(prefix .. "config.maven")
 
 ---@type Utils
@@ -33,57 +33,56 @@ local function real_time_notification()
                 counter = 1
             end
 
+            -- vim.notify(" " .. spinner[counter] .. " " .. current_command, vim.log.levels.TRACE)
             vim.api.nvim_echo({ { " " .. spinner[counter] .. " " .. current_command, "Normal" } }, false, {})
             counter = counter + 1
         else
             if run_total_time:len() > 0 then
                 if success then
+                    -- vim.notify(current_command .. ": done in " .. run_total_time, vim.log.levels.OFF)
                     vim.api.nvim_echo(
                         { { "  " .. current_command .. ": done in " .. run_total_time, "DiagnosticOk" } },
                         false,
                         {}
                     )
                 else
-                    vim.api.nvim_echo(
-                        { { "  " .. current_command .. ": failed in " .. run_total_time, "Error" } },
-                        false,
-                        {}
-                    )
+                    vim.notify(current_command .. ": failed in " .. run_total_time, vim.log.levels.ERROR)
                 end
             else
-                vim.api.nvim_echo(
-                    { { "  " .. current_command .. ": terminated", "WarningMsg" } },
-                    false,
-                    {}
-                )
+                vim.notify(current_command .. ": terminated", vim.log.levels.WARN)
+                -- vim.api.nvim_echo({ { "  " .. current_command .. ": terminated", "WarningMsg" } }, false, {})
             end
 
-            timer:stop()
-            if not timer:is_closing() then
-                timer:close()
+            if timer ~= nil then
+                timer:stop()
+                if not timer:is_closing() then
+                    timer:close()
+                end
             end
         end
     end
 
-    -- Start the timer to update every 1000 milliseconds (1 second)
-    timer:start(0, 100, vim.schedule_wrap(update_notification))
+    if timer ~= nil then
+        -- Start the timer to update every 1000 milliseconds (1 second)
+        timer:start(0, 250, vim.schedule_wrap(update_notification))
 
-    -- Stop the timer when Neovim exits
-    vim.api.nvim_create_autocmd("VimLeavePre", {
-        callback = function()
-            timer:stop()
-            timer:close()
-        end,
-    })
+        -- Stop the timer when Neovim exits
+        vim.api.nvim_create_autocmd("VimLeavePre", {
+            callback = function()
+                timer:stop()
+                timer:close()
+            end,
+        })
+    end
 end
 
 local msg_buf = ""
 
----@param entry Tree_Entry|Command
+---@param entry TreeEntry|Command
 ---@param pom_file string
 ---@param reset_callback fun()
 ---@param append_callback fun(lines:Array)
-function Runner.run(entry, pom_file, reset_callback, append_callback)
+function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback)
     if entry.command == nil then
         return
     end
@@ -179,4 +178,4 @@ function Runner.run(entry, pom_file, reset_callback, append_callback)
     vim.uv.read_start(stderr, process_data)
 end
 
-return Runner
+return Maven_Tools_Runner

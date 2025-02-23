@@ -5,6 +5,7 @@
 -- end
 --
 
+
 vim.opt.incsearch = true
 vim.opt.hlsearch = false
 
@@ -17,6 +18,7 @@ vim.opt.smartindent = true
 
 vim.opt.nu = true
 vim.opt.rnu = false --disable relative line number
+
 
 vim.opt.spelllang = "en_us"
 vim.opt.spell = true
@@ -171,6 +173,8 @@ if not vim.g.lite then
     end
 end
 
+
+
 if not vim.g.lite then
     vim.schedule(function()
         if io.open(vim.loop.cwd() .. "/.nvim/init.lua", "r") ~= nil then
@@ -180,5 +184,6 @@ if not vim.g.lite then
         vim.schedule(require("persistence").load)
         vim.cmd.colorscheme("catppuccin-mocha")
     end)
+
     require("maven-tools").setup()
 end

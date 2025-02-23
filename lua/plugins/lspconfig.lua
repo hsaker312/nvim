@@ -29,7 +29,7 @@ return {
         require("mason-lspconfig").setup({
             -- Install these LSPs automatically
             ensure_installed = {
-                "clangd",
+                -- "clangd",
                 "jdtls",
                 "jsonls",
                 "pyright",
@@ -39,7 +39,7 @@ return {
         require("mason-tool-installer").setup({
             -- Install these linters, formatters, debuggers automatically
             ensure_installed = {
-                "asm-lsp",
+                -- "asm-lsp",
                 "asmfmt",
                 "bash-language-server",
                 "cmake-language-server",

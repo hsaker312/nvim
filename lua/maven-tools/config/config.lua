@@ -1,34 +1,53 @@
----@class Config
-Config = {}
+---@class MavenToolsConfig
+MavenToolsConfig = {}
 
-Config.version = "0.0.1"
+MavenToolsConfig.version = "0.0.1"
 
----@type boolean
-Config.recursive_pom_search = true
+---@type "Windows"|"Posix"
+MavenToolsConfig.OS = package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" and "Windows" or "Posix"
 
----@type boolean
-Config.multiproject = true
-
----@type boolean
-Config.refresh_on_startup = true
+MavenToolsConfig.cwd = vim.uv.cwd()
 
 ---@type boolean
-Config.auto_refresh = true
+MavenToolsConfig.recursive_pom_search = true
+
+---@type boolean
+MavenToolsConfig.multiproject = true
+
+---@type boolean
+MavenToolsConfig.refresh_on_startup = true
+
+---@type boolean
+MavenToolsConfig.auto_refresh = true
 
 ---@type string
-Config.local_config_dir = ".nvim/.maven"
+MavenToolsConfig.local_config_dir = ".nvim/.maven"
 
 ---@type integer
-Config.max_parallel_jobs = 4
+MavenToolsConfig.max_parallel_jobs = 4
 
 ---@type string[]
-Config.ignore_files = {"/META%-INF/"}
+MavenToolsConfig.ignore_files = { "/META%-INF/" }
 
 ---@type string
-Config.tab = "   "
+MavenToolsConfig.tab = "   "
 
 ---@type string
-Config.default_filter = "headless"
+MavenToolsConfig.default_filter = ""
 
-return Config
+---@type string[]
+MavenToolsConfig.lifecycle_commands = {
+    "clean",
+    "install",
+    "clean install",
+}
 
+MavenToolsConfig.show_lifecycle = true
+MavenToolsConfig.show_plugins = true
+MavenToolsConfig.show_dependencies = true
+MavenToolsConfig.show_repositories = true
+MavenToolsConfig.show_files = true
+MavenToolsConfig.auto_update_project_files = true
+MavenToolsConfig.cacheEntries = false
+
+return MavenToolsConfig

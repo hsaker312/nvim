@@ -1,4 +1,4 @@
----@class Maven_Console_Window
+---@class MavenConsoleWindow
 Maven_Console_Window = {}
 
 local prefix = "maven-tools."

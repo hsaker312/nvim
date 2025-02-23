@@ -2,101 +2,100 @@
 ---@field cmd string
 ---@field args string[]
 
----@class Maven_Config
-M = {}
+---@class MavenConfig
+MavenToolsMavenConfig = {}
 
 local prefix = "maven-tools."
 
 ---@type Utils
 local utils = require(prefix .. "utils")
 
-local prefer_maven_wrapper = false
+---@type MavenToolsConfig
+local config = require(prefix .. "config.config")
+
+MavenToolsMavenConfig.prefer_maven_wrapper = false
 
 ---@type "strict"|"lax"|nil
-local checksum_policy = nil
+MavenToolsMavenConfig.checksum_policy = nil
 
-local check_plugin_updates = false
-
----@type string?
-local encrypt_master_password = nil
+MavenToolsMavenConfig.check_plugin_updates = false
 
 ---@type string?
-local encrypt_password = nil
+MavenToolsMavenConfig.encrypt_master_password = nil
 
 ---@type string?
-local global_settings = nil
+MavenToolsMavenConfig.encrypt_password = nil
 
 ---@type string?
-local global_toolchains = nil
-
-local ignore_transitive_repositories = false
+MavenToolsMavenConfig.global_settings = nil
 
 ---@type string?
-local settings = nil
+MavenToolsMavenConfig.global_toolchains = nil
+
+MavenToolsMavenConfig.ignore_transitive_repositories = false
 
 ---@type string?
-local toolchains = nil
+MavenToolsMavenConfig.settings = nil
 
-local non_recursive = false
+---@type string?
+MavenToolsMavenConfig.toolchains = nil
 
-local no_plugin_registry = false
+---@type boolean
+MavenToolsMavenConfig.non_recursive = false
+
+---@type boolean
+MavenToolsMavenConfig.no_plugin_registry = false
 
 ---@type boolean?
-local plugin_updates = nil
+MavenToolsMavenConfig.plugin_updates = nil
 
 ---@type boolean?
-local snapshot_updates = nil
+MavenToolsMavenConfig.snapshot_updates = nil
 
-local offline = false
+---@type boolean
+MavenToolsMavenConfig.offline = false
 
 ---@type string?
-local activate_profiles = nil
+MavenToolsMavenConfig.activate_profiles = nil
 
-local also_make = false
+MavenToolsMavenConfig.also_make = false
 
-local also_make_dependents = false
+MavenToolsMavenConfig.also_make_dependents = false
 
 ---@type integer?
-local threads = nil
+MavenToolsMavenConfig.threads = nil
 
 ---@type string?
-local builder = nil
+MavenToolsMavenConfig.builder = nil
 
 ---@type "never"|"fast"|"end"|nil
-local fail_policy = nil
+MavenToolsMavenConfig.fail_policy = nil
 
-local no_transfer_progress = false
+MavenToolsMavenConfig.no_transfer_progress = false
 
-local errors = false
+MavenToolsMavenConfig.errors = false
 
-local quiet = false
+MavenToolsMavenConfig.quiet = false
 
-local debug = false
-
----@type string?
-local importer_jdk = "C:/Program Files (x86)/Java/jdk1.8.0_66"
+MavenToolsMavenConfig.debug = false
 
 ---@type string?
-local runner_jdk = "C:/Program Files (x86)/Java/jdk1.8.0_66"
+MavenToolsMavenConfig.importer_jdk = nil
 
-local importer_options = { "maven.repo.local=c:/Users/saker.helmy/maven/repos/headless", "branch=headless" }
+---@type string?
+MavenToolsMavenConfig.runner_jdk = nil
 
-local runner_options = {
-    "maven.repo.local=c:/Users/saker.helmy/maven/",
-    "branch=headless",
-    "org.ops4j.pax.url.mvn.localRepository=c:/Users/saker.helmy/maven/repos/headless",
-    "org.ops4j.pax.url.mvn.repositories=http://swproductsrepo.meso-scale.com/nexus/content/groups/headless@id=nexus",
-    "org.ops4j.pax.url.mvn.defaultRepositories=c:/Users/saker.helmy/maven/repos/headless",
-    "maven.test.skip=true",
-    "license.skip.collect=true",
-    "msd.clean-database.skip",
-}
+---@type string[]
+MavenToolsMavenConfig.importer_options = {}
+
+---@type string[]
+MavenToolsMavenConfig.runner_options = {}
 
 local function make_shell_command(jdk, options)
     local res = ""
 
     if type(jdk) == "string" then
-        if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+        if config.OS == "Windows" then
             res = '$env:JAVA_HOME="' .. jdk .. '";'
         else
             res = 'env JAVA_HOME="' .. jdk .. '"'
@@ -105,79 +104,79 @@ local function make_shell_command(jdk, options)
 
     res = res .. " mvn "
 
-    if options == importer_options then
+    if options == MavenToolsMavenConfig.importer_options then
         res = res .. "--batch-mode --no-transfer-progress --no-snapshot-updates -DskipTests "
     else
         res = res .. "--color always "
     end
 
-    if checksum_policy == "lax" then
+    if MavenToolsMavenConfig.checksum_policy == "lax" then
         res = res .. " --lax-checksums "
-    elseif checksum_policy == "strict" then
+    elseif MavenToolsMavenConfig.checksum_policy == "strict" then
         res = res .. " --strict-checksums "
     end
 
-    if check_plugin_updates then
+    if MavenToolsMavenConfig.check_plugin_updates then
         res = res .. " --check-plugin-updates "
     end
 
-    if type(encrypt_master_password) == "string" then
-        res = res .. ' "--encrypt-master-password ' .. encrypt_master_password .. '" '
+    if type(MavenToolsMavenConfig.encrypt_master_password) == "string" then
+        res = res .. ' "--encrypt-master-password ' .. MavenToolsMavenConfig.encrypt_master_password .. '" '
     end
 
-    if type(encrypt_password) == "string" then
-        res = res .. ' "--encrypt-password ' .. encrypt_password .. '" '
+    if type(MavenToolsMavenConfig.encrypt_password) == "string" then
+        res = res .. ' "--encrypt-password ' .. MavenToolsMavenConfig.encrypt_password .. '" '
     end
 
-    if type(global_settings) == "string" then
-        res = res .. ' "--global-settings ' .. global_settings .. '" '
+    if type(MavenToolsMavenConfig.global_settings) == "string" then
+        res = res .. ' "--global-settings ' .. MavenToolsMavenConfig.global_settings .. '" '
     end
 
-    if type(global_toolchains) == "string" then
-        res = res .. ' "--global-toolchains ' .. global_toolchains .. '" '
+    if type(MavenToolsMavenConfig.global_toolchains) == "string" then
+        res = res .. ' "--global-toolchains ' .. MavenToolsMavenConfig.global_toolchains .. '" '
     end
 
-    if type(settings) == "string" then
-        res = res .. ' "--settings ' .. settings .. '" '
+    if type(MavenToolsMavenConfig.settings) == "string" then
+        res = res .. ' "--settings ' .. MavenToolsMavenConfig.settings .. '" '
     end
 
-    if type(toolchains) == "string" then
-        res = res .. ' "--toolchains ' .. toolchains .. '" '
+    if type(MavenToolsMavenConfig.toolchains) == "string" then
+        res = res .. ' "--toolchains ' .. MavenToolsMavenConfig.toolchains .. '" '
     end
 
-    if type(activate_profiles) == "string" then
-        res = res .. ' "--activate-profiles ' .. activate_profiles .. '" '
+    if type(MavenToolsMavenConfig.activate_profiles) == "string" then
+        res = res .. ' "--activate-profiles ' .. MavenToolsMavenConfig.activate_profiles .. '" '
     end
 
-    if ignore_transitive_repositories then
+    if MavenToolsMavenConfig.ignore_transitive_repositories then
         res = res .. " --ignore-transitive-repositories "
     end
 
-    if non_recursive then
+    if MavenToolsMavenConfig.non_recursive then
         res = res .. " --non-recursive "
     end
 
-    if type(plugin_updates) == "boolean" then
-        if plugin_updates then
+    if type(MavenToolsMavenConfig.plugin_updates) == "boolean" then
+        if MavenToolsMavenConfig.plugin_updates then
             res = res .. " --no-plugin-updates "
         else
             res = res .. " --update-plugins "
         end
     end
 
-    if type(snapshot_updates) == "boolean" then
-        if snapshot_updates then
+    if type(MavenToolsMavenConfig.snapshot_updates) == "boolean" then
+        if MavenToolsMavenConfig.snapshot_updates then
             res = res .. " --no-snapshot-updates "
         else
             res = res .. " --update-snapshots "
         end
     end
 
-    if no_plugin_registry then
+    if MavenToolsMavenConfig.no_plugin_registry then
         res = res .. " --no-plugin-registry "
     end
 
-    if offline then
+    if MavenToolsMavenConfig.offline then
         res = res .. " --offline "
     end
 
@@ -188,8 +187,8 @@ local function make_shell_command(jdk, options)
     return res
 end
 
-local importer = make_shell_command(importer_jdk, importer_options)
-local runner = make_shell_command(runner_jdk, runner_options)
+local importer = make_shell_command(MavenToolsMavenConfig.importer_jdk, MavenToolsMavenConfig.importer_options)
+local runner = make_shell_command(MavenToolsMavenConfig.runner_jdk, MavenToolsMavenConfig.runner_options)
 
 local function get_importer_shell_command(file, cmd)
     local res = importer
@@ -216,7 +215,8 @@ end
 ---@return string[]
 local function get_importer_args(file, cmds)
     local res = {}
-    if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+    if config.OS == "Windows" then
+        table.insert(res, "-NoProfile")
         table.insert(res, "-Command")
     else
         table.insert(res, "-c")
@@ -227,14 +227,14 @@ local function get_importer_args(file, cmds)
     for _, cmd in ipairs(cmds) do
         arg = arg .. get_importer_shell_command(file, cmd)
 
-        if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+        if config.OS == "Windows" then
             arg = arg .. "; "
         else
             arg = arg .. "&& "
         end
     end
 
-    if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+    if config.OS == "Windows" then
         arg = arg:sub(1, #arg - 2)
     else
         arg = arg:sub(1, #arg - 3)
@@ -250,7 +250,8 @@ end
 ---@return string[]
 local function get_runner_args(file, cmds)
     local res = {}
-    if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+    if config.OS == "Windows" then
+        table.insert(res, "-NoProfile")
         table.insert(res, "-Command")
     else
         table.insert(res, "-c")
@@ -261,14 +262,14 @@ local function get_runner_args(file, cmds)
     for _, cmd in ipairs(cmds) do
         arg = arg .. get_runner_shell_command(file, cmd)
 
-        if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+        if config.OS == "Windows" then
             arg = arg .. "; "
         else
             arg = arg .. "&& "
         end
     end
 
-    if package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" then
+    if config.OS == "Windows" then
         arg = arg:sub(1, #arg - 2)
     else
         arg = arg:sub(1, #arg - 3)
@@ -279,12 +280,12 @@ local function get_runner_args(file, cmds)
     return res
 end
 
-local shell_cmd = package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" and "powershell.exe" or "sh"
+local shell_cmd = config.OS == "Windows" and "powershell.exe" or "sh"
 
 ---@param file string?
 ---@param args string[]
 ---@return Pipe_Cmd
-function M.importer_pipe_cmd(file, args)
+function MavenToolsMavenConfig.importer_pipe_cmd(file, args)
     return {
         cmd = shell_cmd,
         args = get_importer_args(file, args),
@@ -294,7 +295,7 @@ end
 ---@param file string?
 ---@param args string[]
 ---@return Pipe_Cmd
-function M.runner_pipe_cmd(file, args)
+function MavenToolsMavenConfig.runner_pipe_cmd(file, args)
     return {
         cmd = shell_cmd,
         args = get_runner_args(file, args),
@@ -302,7 +303,7 @@ function M.runner_pipe_cmd(file, args)
 end
 
 ---@return string
-function M.importer_checksum()
+function MavenToolsMavenConfig.importer_checksum()
     local cmd = shell_cmd
 
     for _, arg in ipairs(get_importer_args("", {})) do
@@ -312,4 +313,9 @@ function M.importer_checksum()
     return utils.str_checksum(cmd)
 end
 
-return M
+function MavenToolsMavenConfig.update()
+    importer = make_shell_command(MavenToolsMavenConfig.importer_jdk, MavenToolsMavenConfig.importer_options)
+    runner = make_shell_command(MavenToolsMavenConfig.runner_jdk, MavenToolsMavenConfig.runner_options)
+end
+
+return MavenToolsMavenConfig
