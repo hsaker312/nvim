@@ -164,6 +164,20 @@ vim.keymap.set("i", "<a-q>", "<home>", { noremap = true, silent = true, desc = "
 vim.keymap.set("i", "<a-e>", "<end>", { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
+vim.keymap.set("n", "M", function()
+    -- require("lua")
+    vim.ui.input({ prompt = "Delete Mark" }, function(value)
+        if value == nil then
+            return
+        end
+
+        if value == '"' then
+            value = "\\" .. value
+        end
+
+        vim.cmd("delmarks " .. value)
+    end)
+end, { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 vim.keymap.set("n", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
@@ -247,6 +261,17 @@ vim.keymap.set(
 
 vim.keymap.set("n", "<tab>", ">0llll", { noremap = true, silent = true, desc = "Shift Line Right" })
 
+vim.keymap.set("i", "<A-right>", function()
+    local line_num = vim.fn.line(".")
+    local col_num = vim.fn.col(".")
+    local line = vim.fn.getline(line_num)
+
+    vim.api.nvim_command("normal! v>")
+    if col_num < #line then
+        vim.api.nvim_command("normal! llll")
+    end
+end, { noremap = true, silent = true, desc = "Shift Line Right" })
+
 vim.keymap.set("v", "<tab>", function()
     local ls, cs, le, ce = get_ls_cs_le_ce()
     ---@diagnostic disable-next-line: undefined-field
@@ -270,7 +295,7 @@ vim.keymap.set("n", "<S-tab>", function()
     end
 end, { noremap = true, silent = true, desc = "Shift Line Left" })
 
-vim.keymap.set("i", "<S-tab>", function()
+vim.keymap.set("i", "<A-left>", function()
     local line_num = vim.fn.line(".")
     local col_num = vim.fn.col(".")
     local line = vim.fn.getline(line_num)

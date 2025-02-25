@@ -1,7 +1,9 @@
 -- vim.keymap.set({ "n", "i" }, "<A-C-l>", require("conform").format)
 
 vim.keymap.set("n", "<leader>e", function()
-    require("snacks").explorer()
+    local snacks = require("snacks")
+    ---@type fun(opt:snacks.picker.explorer.Config)
+    snacks.explorer({ hidden = true, ignored = true })
 end, { noremap = true, silent = true, desc = "File Explorer" })
 
 vim.keymap.set("n", "<A-C-;>", function()
@@ -65,10 +67,6 @@ vim.keymap.set(
     "<cmd> Telescope bookmarks list <CR>",
     { noremap = true, silent = true, desc = "Find Bookmarks" }
 )
-
-vim.keymap.set("n", "<leader>bm", function()
-    require("bookmarks").bookmark_toggle()
-end, { noremap = true, silent = true, desc = "Toggle Bookmarks" })
 
 vim.keymap.set("n", "<leader>p", function()
     require("dropbar.api").pick()
