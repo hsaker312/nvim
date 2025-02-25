@@ -5,6 +5,15 @@
 -- end
 --
 
+if vim.g.vscode then
+    local vscode, _ = pcall(require, "vscode")
+
+    if vscode ~= nil then
+        vim.notify = vscode.notify
+    end
+else
+    vim.notify = require("snacks").notify
+end
 
 vim.opt.incsearch = true
 vim.opt.hlsearch = false

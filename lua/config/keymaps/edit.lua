@@ -156,6 +156,13 @@ local wrap_selected = function(reg, open, close)
     end, 30)
 end
 
+vim.keymap.set("i", "<a-w>", "<up>", { noremap = true, silent = true, desc = "Select line" })
+vim.keymap.set("i", "<a-a>", "<left>", { noremap = true, silent = true, desc = "Select line" })
+vim.keymap.set("i", "<a-s>", "<down>", { noremap = true, silent = true, desc = "Select line" })
+vim.keymap.set("i", "<a-d>", "<right>", { noremap = true, silent = true, desc = "Select line" })
+vim.keymap.set("i", "<a-q>", "<home>", { noremap = true, silent = true, desc = "Select line" })
+vim.keymap.set("i", "<a-e>", "<end>", { noremap = true, silent = true, desc = "Select line" })
+
 vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
 
 vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
