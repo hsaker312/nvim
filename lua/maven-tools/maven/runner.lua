@@ -2,25 +2,25 @@
 ---@field command string
 
 ---@class MavenRunner
-Maven_Tools_Runner = {}
+MavenToolsRunner = {}
 
 local prefix = "maven-tools."
 
----@type MavenConfig
-local maven_config = require(prefix .. "config.maven")
+---@type MavenToolsConfig
+local mavenConfig = require(prefix .. "config.maven")
 
----@type Utils
+---@type MavenUtils
 local utils = require(prefix .. "utils")
 
----@type uv_process_t|nil
-local runner_handle = nil
+---@type uv.uv_process_t|nil
+local runnerHandle = nil
 
-local current_command = ""
+local currentCommand = ""
 local spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-local spinner_count = 10
+local spinnerCount = 10
 local running = false
 local success = false
-local run_total_time = ""
+local runTotalTime = ""
 
 local function real_time_notification()
     running = true
@@ -29,27 +29,27 @@ local function real_time_notification()
 
     local function update_notification()
         if running then
-            if counter > spinner_count then
+            if counter > spinnerCount then
                 counter = 1
             end
 
             -- vim.notify(" " .. spinner[counter] .. " " .. current_command, vim.log.levels.TRACE)
-            vim.api.nvim_echo({ { " " .. spinner[counter] .. " " .. current_command, "Normal" } }, false, {})
+            vim.api.nvim_echo({ { " " .. spinner[counter] .. " " .. currentCommand, "Normal" } }, false, {})
             counter = counter + 1
         else
-            if run_total_time:len() > 0 then
+            if runTotalTime:len() > 0 then
                 if success then
                     -- vim.notify(current_command .. ": done in " .. run_total_time, vim.log.levels.OFF)
                     vim.api.nvim_echo(
-                        { { "  " .. current_command .. ": done in " .. run_total_time, "DiagnosticOk" } },
+                        { { "  " .. currentCommand .. ": done in " .. runTotalTime, "DiagnosticOk" } },
                         false,
                         {}
                     )
                 else
-                    vim.notify(current_command .. ": failed in " .. run_total_time, vim.log.levels.ERROR)
+                    vim.notify(currentCommand .. ": failed in " .. runTotalTime, vim.log.levels.ERROR)
                 end
             else
-                vim.notify(current_command .. ": terminated", vim.log.levels.WARN)
+                vim.notify(currentCommand .. ": terminated", vim.log.levels.WARN)
                 -- vim.api.nvim_echo({ { "  " .. current_command .. ": terminated", "WarningMsg" } }, false, {})
             end
 
@@ -76,21 +76,21 @@ local function real_time_notification()
     end
 end
 
-local msg_buf = ""
+local msgBuf = ""
 
 ---@param entry TreeEntry|Command
 ---@param pom_file string
 ---@param reset_callback fun()
 ---@param append_callback fun(lines:Array)
-function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback)
+function MavenToolsRunner.run(entry, pom_file, reset_callback, append_callback)
     if entry.command == nil then
         return
     end
 
-    if runner_handle ~= nil and not runner_handle:is_closing() then
+    if runnerHandle ~= nil and not runnerHandle:is_closing() then
         success = false
-        run_total_time = ""
-        runner_handle:kill("sigterm")
+        runTotalTime = ""
+        runnerHandle:kill("sigterm")
     end
     --
     -- if runner_win_id ~= nil then
@@ -106,14 +106,18 @@ function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback
     local stdout = vim.uv.new_pipe(false)
     local stderr = vim.uv.new_pipe(false)
 
-    local pipe_cmd = maven_config.runner_pipe_cmd(pom_file, { entry.command })
-    current_command = entry.command
+    if stdout == nil or stderr == nil then
+        return
+    end
+
+    local pipeCmd = mavenConfig.runner_pipe_cmd(pom_file, { entry.command })
+    currentCommand = entry.command
 
     real_time_notification()
 
-    local cmd_str = pipe_cmd.cmd
+    local cmd_str = pipeCmd.cmd
 
-    for _, arg in ipairs(pipe_cmd.args) do
+    for _, arg in ipairs(pipeCmd.args) do
         cmd_str = cmd_str .. " " .. arg
     end
 
@@ -122,17 +126,17 @@ function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback
 
     append_callback(utils.Array():append(cmd_str))
 
-    runner_handle = vim.uv.spawn(pipe_cmd.cmd, {
-        args = pipe_cmd.args,
+    runnerHandle = vim.uv.spawn(pipeCmd.cmd, {
+        args = pipeCmd.args,
         stdio = { nil, stdout, stderr },
     }, function()
         running = false
         stdout:close()
         stderr:close()
 
-        if runner_handle ~= nil then
-            runner_handle:close()
-            runner_handle = nil
+        if runnerHandle ~= nil then
+            runnerHandle:close()
+            runnerHandle = nil
         end
     end)
 
@@ -141,9 +145,9 @@ function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback
             local lines = utils.Array()
             -- local data_lines_count = 0
             data = data:gsub("[\r\n|\n\r]", "\n"):gsub("\r", ""):gsub("\27%[m", "\27%[0m")
-            msg_buf = msg_buf .. data
+            msgBuf = msgBuf .. data
 
-            if msg_buf:sub(#msg_buf, #msg_buf) == "\n" then
+            if msgBuf:sub(#msgBuf, #msgBuf) == "\n" then
                 for line in data:gmatch("[^\n]+") do
                     ---@cast line string
                     if line ~= "" then
@@ -152,7 +156,7 @@ function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback
                         elseif line:match("BUILD SUCCESS") then
                             success = true
                         elseif line:match("Total time:") then
-                            run_total_time = line:gsub(".+Total time:", ""):gsub("%s", "")
+                            runTotalTime = line:gsub(".+Total time:", ""):gsub("%s", "")
                         end
 
                         -- table.insert(lines, line)
@@ -165,7 +169,7 @@ function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback
                 -- append_to_buffer(lines, data_lines_count)
                 append_callback(lines)
 
-                msg_buf = ""
+                msgBuf = ""
             end
         end
 
@@ -178,4 +182,4 @@ function Maven_Tools_Runner.run(entry, pom_file, reset_callback, append_callback
     vim.uv.read_start(stderr, process_data)
 end
 
-return Maven_Tools_Runner
+return MavenToolsRunner

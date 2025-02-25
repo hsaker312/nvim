@@ -7,6 +7,9 @@ vim.fn.sign_define("DiagnosticSignWarn", { text = " ", texthl = "DiagnosticSi
 vim.fn.sign_define("DiagnosticSignInfo", { text = " ", texthl = "DiagnosticSignInfo" })
 vim.fn.sign_define("DiagnosticSignHint", { text = "󰌵", texthl = "DiagnosticSignHint" })
 
+vim.g.loaded_netrwPlugin = 1
+vim.g.loaded_netrw = 1
+
 vim.opt.scrolloff = 10
 vim.opt.mousemoveevent = true
 
@@ -15,9 +18,9 @@ vim.diagnostic.config({
 })
 
 if vim.g.vscode then
-    local vscode, _  = pcall(require, "vscode")
+    local vscode, _ = pcall(require, "vscode")
 
-    if vscode then
+    if vscode ~= nil then
         vim.notify = vscode.notify
     end
 end

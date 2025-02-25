@@ -9,45 +9,45 @@ MavenToolsConfig.OS = package.cpath:match("%p[\\|/]?%p(%a+)") == "dll" and "Wind
 MavenToolsConfig.cwd = vim.uv.cwd()
 
 ---@type boolean
-MavenToolsConfig.recursive_pom_search = true
+MavenToolsConfig.recursivePomSearch = true
 
 ---@type boolean
 MavenToolsConfig.multiproject = true
 
 ---@type boolean
-MavenToolsConfig.refresh_on_startup = true
-
----@type boolean
-MavenToolsConfig.auto_refresh = true
+MavenToolsConfig.refreshOnStartup = false
 
 ---@type string
-MavenToolsConfig.local_config_dir = ".nvim/.maven"
+MavenToolsConfig.localConfigDir = ".nvim/.maven"
 
 ---@type integer
-MavenToolsConfig.max_parallel_jobs = 4
+MavenToolsConfig.maxParallelJobs = 4
 
 ---@type string[]
-MavenToolsConfig.ignore_files = { "/META%-INF/" }
+MavenToolsConfig.ignoreFiles = {
+    "/META%-INF/",
+    ".*/target/.*",
+}
 
 ---@type string
 MavenToolsConfig.tab = "   "
 
 ---@type string
-MavenToolsConfig.default_filter = ""
+MavenToolsConfig.defaultFilter = ""
 
 ---@type string[]
-MavenToolsConfig.lifecycle_commands = {
+MavenToolsConfig.lifecycleCommands = {
     "clean",
     "install",
     "clean install",
 }
 
-MavenToolsConfig.show_lifecycle = true
-MavenToolsConfig.show_plugins = true
-MavenToolsConfig.show_dependencies = true
-MavenToolsConfig.show_repositories = true
-MavenToolsConfig.show_files = true
-MavenToolsConfig.auto_update_project_files = true
-MavenToolsConfig.cacheEntries = false
+MavenToolsConfig.showLifecycle = true
+MavenToolsConfig.showPlugins = true
+MavenToolsConfig.showDependencies = true
+MavenToolsConfig.showRepositories = true
+MavenToolsConfig.showFiles = true
+MavenToolsConfig.autoRefreshProjectFiles = true
+MavenToolsConfig.cacheEntries = true
 
 return MavenToolsConfig

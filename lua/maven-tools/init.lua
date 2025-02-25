@@ -1,15 +1,15 @@
 ---@class MavenTools
-Maven_Tools = {}
+MavenTools = {}
 
 local prefix = "maven-tools."
 
 ---@type MavenToolsConfig
 local config = require(prefix .. "config.config")
 
----@type MavenConfig
+---@type MavenToolsConfig
 local maven_config = require(prefix .. "config.maven")
 
----@type Utils
+---@type MavenUtils
 local utils = require(prefix .. "utils")
 
 -- local my_require = require
@@ -30,15 +30,15 @@ local maven_importer = require(prefix .. "maven.importer")
 
 local main_win = vim.api.nvim_get_current_win()
 
-Maven_Tools.show_win = function()
+MavenTools.show_win = function()
     if maven_win == nil and maven_buf ~= nil then
         maven_win = create_tree_window(maven_buf)
     end
 end
 
-Maven_Tools.update_test = update_buf
+MavenTools.update_test = update_buf
 
-Maven_Tools.test = function()
+MavenTools.test = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
@@ -49,7 +49,7 @@ Maven_Tools.test = function()
     end
 end
 
-Maven_Tools.open_pom_file = function()
+MavenTools.open_pom_file = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
@@ -100,7 +100,7 @@ Maven_Tools.open_pom_file = function()
     end
 end
 
-Maven_Tools.show_error = function()
+MavenTools.show_error = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
@@ -113,7 +113,7 @@ Maven_Tools.show_error = function()
     end
 end
 
-Maven_Tools.show_effective_pom = function()
+MavenTools.show_effective_pom = function()
     local line = vim.fn.line(".")
 
     for _, v in ipairs(line_roots) do
@@ -131,7 +131,7 @@ Maven_Tools.show_effective_pom = function()
     end
 end
 
-function Maven_Tools.toggle_()
+function MavenTools.toggle_()
     require("maven-tools.ui.main"):start()
 end
 
@@ -140,15 +140,14 @@ local function toggle()
 end
 
 ---@class MavenToolsConfigOpts
----@field recursive_pom_search boolean|nil
+---@field recursivePomSearch boolean|nil
 ---@field multiproject boolean|nil
----@field refresh_on_startup boolean|nil
----@field auto_refresh boolean|nil
----@field local_config_dir boolean|nil
----@field max_parallel_jobs boolean|nil
----@field ignore_files boolean|nil
----@field default_filter string|nil
----@field lifecycle_commands string[]|nil
+---@field refreshOnStartup boolean|nil
+---@field localConfigDir boolean|nil
+---@field maxParallelJobs boolean|nil
+---@field ignoreFiles boolean|nil
+---@field defaultFilter string|nil
+---@field lifecycleCommands string[]|nil
 
 ---@class MavenToolsMavenOpts
 ---@field prefer_maven_wrapper boolean|nil
@@ -207,19 +206,19 @@ local function configure(opts)
 end
 
 ---@param opts MavenToolsOpts
-function Maven_Tools.override(opts)
+function MavenTools.override(opts)
     configure(opts)
 end
 
 ---@param opts MavenToolsOpts|nil
-function Maven_Tools.setup(opts)
-    vim.g.MavernTools = Maven_Tools
+function MavenTools.setup(opts)
+    vim.g.MavernTools = MavenTools
 
     vim.schedule(function()
         configure(opts)
 
         vim.schedule(function()
-            local local_config_path = vim.loop.cwd() .. "/" .. config.local_config_dir .. "/maven.lua"
+            local local_config_path = vim.loop.cwd() .. "/" .. config.localConfigDir .. "/maven.lua"
 
             if io.open(local_config_path, "r") ~= nil then
                 vim.api.nvim_command("source " .. local_config_path)
@@ -227,11 +226,13 @@ function Maven_Tools.setup(opts)
 
             vim.schedule(function()
                 vim.api.nvim_create_user_command("MavenToolsToggle", toggle, {})
+                vim.api.nvim_create_user_command("MavenToolsRun", 'lua require("maven-tools.ui.main").run(0)', {})
+                vim.api.nvim_create_user_command("MavenToolsAddDependency", 'lua require("maven-tools.ui.main").add_dependency(0)', {})
             end)
         end)
     end)
 
-    return Maven_Tools
+    return MavenTools
 end
 
-return Maven_Tools
+return MavenTools

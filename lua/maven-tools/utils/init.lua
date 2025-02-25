@@ -1,4 +1,4 @@
----@class Utils
+---@class MavenUtils
 MavenToolsUtils = {}
 
 local prefix = "maven-tools."
@@ -481,7 +481,7 @@ end
 -- end
 
 local function is_ignored(file)
-    for _, ignore_file in ipairs(config.ignore_files) do
+    for _, ignore_file in ipairs(config.ignoreFiles) do
         if tostring(file):match(ignore_file) then
             return true
         end
@@ -516,7 +516,7 @@ MavenToolsUtils.find_pom_files = function(directory)
         for _, file in ipairs(files) do
             if file:filename() == "pom.xml" and not is_ignored(file) then
                 pom_files:append(tostring(file))
-            elseif config.recursive_pom_search and file:is_directory() then
+            elseif config.recursivePomSearch and file:is_directory() then
                 dirs:push(file)
             end
         end
@@ -585,7 +585,7 @@ function MavenToolsUtils.Task_Mgr()
 
     local task_queue = require(prefix .. "utils").Queue()
     --- @type integer
-    local max_number_of_running_tasks = config.max_parallel_jobs
+    local max_number_of_running_tasks = config.maxParallelJobs
     --- @type integer
     local number_of_running_tasks = 0
     --- @type integer
@@ -630,7 +630,7 @@ function MavenToolsUtils.Task_Mgr()
     end
 
     ---@param pom_file string
-    ---@param pipe_cmd Pipe_Cmd
+    ---@param pipe_cmd PipeCmd
     ---@param callback fun(msg: string):nil
     ---@return nil
     function task_manager:run(pom_file, pipe_cmd, callback)

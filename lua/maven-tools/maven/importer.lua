@@ -69,13 +69,13 @@ end
 
 local prefix = "maven-tools."
 
----@type Utils
+---@type MavenUtils
 local utils = require(prefix .. "utils")
 
 ---@type MavenToolsConfig
 local config = require(prefix .. "config.config")
 
----@type MavenConfig
+---@type MavenToolsConfig
 local mavenConfig = require(prefix .. "config.maven")
 
 local xml2lua = require("maven-tools.deps.xml2lua.xml2lua")
@@ -131,7 +131,7 @@ local modulesTree = {}
 local pendingModules = {}
 
 ---@type string[]
-local lifecycles = config.lifecycle_commands
+local lifecycles = config.lifecycleCommands
 
 ---@return boolean
 MavenToolsImporter.idle = function()
@@ -151,6 +151,7 @@ local function reset()
     MavenToolsImporter.pomFileMavenInfo = {}
 end
 
+---TODO: move to utils and add logic to ignore files that match config.ignoreFiles
 ---@param pomFile string
 ---@return string[]
 local function list_java_files(pomFile)
@@ -602,6 +603,22 @@ local function set_project_entry_to_error_state(pom_file, refreshProjectInfo, er
     if refreshProjectInfo ~= nil then
         MavenToolsImporter.pomFileMavenInfo[pom_file] = nil
         MavenToolsImporter.mavenInfoPomFile[tostring(refreshProjectInfo)] = nil
+
+        --Remove entry from projects that have it as a module
+        if MavenToolsImporter.mavenEntries[tostring(refreshProjectInfo)].module > 0 then
+            for k, v in pairs(MavenToolsImporter.mavenEntries) do
+                if v.modules ~= nil then
+                    for moduleInfo, module in pairs(v.modules.children) do
+                        print("moduleInfo=", tostring(moduleInfo), "refreshProjectInfo=", tostring(refreshProjectInfo))
+                        if tostring(moduleInfo) == tostring(refreshProjectInfo) then
+                            --TODO: set child to a value that can be used to reinsert the module once the error is resolved.
+                            v.modules.children[moduleInfo] = nil
+                        end
+                    end
+                end
+            end
+        end
+
         MavenToolsImporter.mavenEntries[tostring(refreshProjectInfo)] = nil
     end
 
@@ -704,7 +721,13 @@ local function update_project(pomFile, refreshProjectInfo)
 
         local pomXml = xmlTreeHandler:new()
         local pomParser = xml2lua.parser(pomXml)
-        pomParser:parse(pom_file_str)
+        local success = pcall(pomParser.parse, pomParser, pom_file_str)
+        -- pomParser:parse(pom_file_str)
+
+        if not success then
+            set_project_entry_to_error_state(pomFile, refreshProjectInfo, "Failed to parse xml file")
+            return nil
+        end
 
         local linearXml = linearize_table(pomXml.root.project)
 
@@ -1194,7 +1217,7 @@ local function read_cache_file()
     ---@type table<string, TreeEntry|nil>
     local cachedEntries
 
-    resFile = io.open(utils.Path(cwd):join(config.local_config_dir):join("cache.json").str, "r")
+    resFile = io.open(utils.Path(cwd):join(config.localConfigDir):join("cache.json").str, "r")
 
     if resFile then
         local resStr = resFile:read("*a")
@@ -1260,7 +1283,7 @@ local function write_cache_file()
         return
     end
 
-    local path = utils.Path(cwd):join(config.local_config_dir).str
+    local path = utils.Path(cwd):join(config.localConfigDir).str
     local success, _ = utils.create_directories(path)
 
     if success then
@@ -1319,7 +1342,7 @@ local function validate_cached_entry_modules_checksum(cachedEntry, cachedFiles)
         return true
     end
 
-    if config.recursive_pom_search then
+    if config.recursivePomSearch then
         for _, pomFile in ipairs(MavenToolsImporter.pomFiles) do
             if cachedFiles[pomFile] ~= nil then
                 if cachedFiles[pomFile].info ~= nil then

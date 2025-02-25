@@ -1,5 +1,9 @@
 -- vim.keymap.set({ "n", "i" }, "<A-C-l>", require("conform").format)
 
+vim.keymap.set("n", "<leader>e", function()
+    require("snacks").explorer()
+end, { noremap = true, silent = true, desc = "File Explorer" })
+
 vim.keymap.set("n", "<A-C-;>", function()
     vim.api.nvim_feedkeys("V", "", true)
     vim.defer_fn(function()
@@ -52,14 +56,9 @@ vim.keymap.set("n", "<leader>du", function()
     require("dapui").toggle()
 end, { noremap = true, silent = true, desc = "Toggle Debug UI" })
 
-vim.keymap.set(
-    "n",
-    "<leader>ff",
-    function ()
-        require("telescope.builtin").find_files({ hidden = true })
-    end,
-    { noremap = true, silent = true, desc = "Find Files" }
-)
+vim.keymap.set("n", "<leader>ff", function()
+    require("telescope.builtin").find_files({ hidden = true })
+end, { noremap = true, silent = true, desc = "Find Files" })
 vim.keymap.set(
     "n",
     "<leader>fm",
@@ -67,14 +66,9 @@ vim.keymap.set(
     { noremap = true, silent = true, desc = "Find Bookmarks" }
 )
 
-vim.keymap.set(
-    "n",
-    "<leader>bm",
-    function()
-        require("bookmarks").bookmark_toggle()
-    end,
-    { noremap = true, silent = true, desc = "Toggle Bookmarks" }
-)
+vim.keymap.set("n", "<leader>bm", function()
+    require("bookmarks").bookmark_toggle()
+end, { noremap = true, silent = true, desc = "Toggle Bookmarks" })
 
 vim.keymap.set("n", "<leader>p", function()
     require("dropbar.api").pick()
@@ -93,13 +87,13 @@ vim.keymap.set(
     { noremap = true, silent = true, desc = "Move Buffer Left" }
 )
 vim.keymap.set(
-    {"n", "v"},
+    { "n", "v" },
     "<leader><right>",
     "<cmd> BufferLineCycleNext <CR>",
     { noremap = true, silent = true, desc = "Go To Next Buffer" }
 )
 vim.keymap.set(
-    {"n", "v"},
+    { "n", "v" },
     "<leader><left>",
     "<cmd> BufferLineCyclePrev <CR>",
     { noremap = true, silent = true, desc = "Go To Previous Buffer" }
@@ -118,13 +112,13 @@ vim.keymap.set(
     { noremap = true, silent = true, desc = "Move Buffer Left" }
 )
 vim.keymap.set(
-    {"n", "v"},
+    { "n", "v" },
     "<leader>l",
     "<cmd> BufferLineCycleNext <CR>",
     { noremap = true, silent = true, desc = "Go To Next Buffer" }
 )
 vim.keymap.set(
-    {"n", "v"},
+    { "n", "v" },
     "<leader>h",
     "<cmd> BufferLineCyclePrev <CR>",
     { noremap = true, silent = true, desc = "Go To Previous Buffer" }
@@ -168,14 +162,12 @@ vim.keymap.set(
     { noremap = true, silent = true, desc = "Go To Previous Find" }
 )
 
-vim.keymap.set(
-    "n",
-    "gs",
-    "<Cmd>ISwap<CR>",
-    { noremap = true, silent = true, desc = "Swap Arguments" }
-)
+vim.keymap.set("n", "gs", "<Cmd>ISwap<CR>", { noremap = true, silent = true, desc = "Swap Arguments" })
 
+vim.keymap.set("n", "<leader>a", function()
+    require("harpoon"):list():add()
+end)
 
-vim.keymap.set("n", "<leader>a", function() require("harpoon"):list():add() end)
-
-vim.keymap.set("n", "<C-e>", function() require("harpoon").ui:toggle_quick_menu(require("harpoon"):list()) end)
+vim.keymap.set("n", "<C-e>", function()
+    require("harpoon").ui:toggle_quick_menu(require("harpoon"):list())
+end)

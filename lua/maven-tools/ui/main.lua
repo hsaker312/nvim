@@ -24,7 +24,7 @@ local console = require("maven-tools.ui.console")
 ---@type MavenToolsConfig
 local config = require(prefix .. "config.config")
 
----@type Utils
+---@type MavenUtils
 local utils = require(prefix .. "utils")
 
 ---@type MavenImporter
@@ -52,13 +52,16 @@ local lineRoots = {}
 local autocmds = {}
 
 ---@type string
-local filter = config.default_filter
+local filter = config.defaultFilter
 
 ---@type boolean
 local showAll = false
 
 ---@type uv.uv_timer_t|nil
 local projectFilesUpdateTimer = nil
+
+---@type integer
+local requestRows = 25
 
 ---@type table<"0"|"1"|"2"|"3",fun(entry:TreeEntry):fun():boolean>
 local entryCallbackMap = {
@@ -621,7 +624,7 @@ local function initialize_autocmds()
         })
     )
 
-    if config.auto_update_project_files then
+    if config.autoRefreshProjectFiles then
         projectFilesUpdateTimer = vim.uv.new_timer()
 
         if projectFilesUpdateTimer ~= nil then
@@ -738,8 +741,34 @@ local function get_entry_targets(entry, targets, items)
     return targets, items
 end
 
-function MavenToolsMainWindow.run()
-    local entry = get_current_entry()
+---@param callback fun(entry:TreeEntry)
+local function select_target(callback)
+        local items = {}
+        local entries = {}
+
+        for info, project in pairs(mavenImporter.mavenEntries) do
+            table.insert(items, project.textObjs[2].text .. "(" .. info .. ")")
+            table.insert(entries, project)
+        end
+
+        vim.ui.select(items, {
+            prompt = "Select target project",
+        }, function (item, idx)
+            if idx ~= nil then
+                callback(entries[idx])
+            end
+        end)
+        return
+end
+
+---@param entry TreeEntry|number|nil
+function MavenToolsMainWindow.run(entry)
+    if entry == nil then
+        entry = get_current_entry()
+    elseif type(entry) == "number" then
+        select_target(MavenToolsMainWindow.run)
+        return
+    end
 
     if entry == nil then
         return
@@ -785,6 +814,7 @@ local function fetch_url(url, callback)
 
     vim.schedule(function()
         local response = vim.fn.system(command)
+
         if vim.v.shell_error ~= 0 then
             callback(nil, "Failed to fetch URL: " .. url)
         else
@@ -835,15 +865,15 @@ local function parse_packages_json(content, err)
         local count = 0
 
         ---@type table<string, agPair>
-        local ag_pairs = {}
+        local agPairs = {}
 
-        for _, artifact in ipairs(json.response.docs) do
-            table.insert(items, artifact.id)
-            ag_pairs[artifact.id] = { a = artifact.a, g = artifact.g }
+        for _, doc in ipairs(json.response.docs) do
+            table.insert(items, doc.id)
+            agPairs[doc.id] = { a = doc.a, g = doc.g }
             count = count + 1
         end
 
-        return items, ag_pairs, count, json.response.numFound, json.response.start
+        return items, agPairs, count, json.response.numFound, json.response.start
     end
 end
 
@@ -895,8 +925,6 @@ local function parse_package_versions_json(content, err)
     end
 end
 
-local request_rows = 25
-
 ---@param groupId string
 ---@param artifactId string
 ---@param callback fun(groupId:string, artifactId:string, version:string)
@@ -912,19 +940,19 @@ local function select_package_version(groupId, artifactId, callback, start)
             .. "%22+AND+a:%22"
             .. artifactId
             .. "%22&rows="
-            .. tostring(request_rows)
+            .. tostring(requestRows)
             .. "&core=gav&start="
             .. tostring(start)
             .. "&wt=json",
         function(content, err)
-            local items, count, num_found, current = parse_package_versions_json(content, err)
+            local items, count, numFound, current = parse_package_versions_json(content, err)
 
             if items == nil then
                 return
             end
 
-            local pages = math.ceil(num_found / request_rows)
-            local page = math.floor(current / request_rows) + 1
+            local pages = math.ceil(numFound / requestRows)
+            local page = math.floor(current / requestRows) + 1
 
             if pages > 1 and page < pages then
                 table.insert(items, "next (" .. tostring(page) .. "/" .. tostring(pages) .. ")")
@@ -940,7 +968,7 @@ local function select_package_version(groupId, artifactId, callback, start)
                 if idx <= count then
                     callback(groupId, artifactId, item)
                 else
-                    select_package_version(groupId, artifactId, callback, current + request_rows)
+                    select_package_version(groupId, artifactId, callback, current + requestRows)
                 end
             end)
         end
@@ -960,19 +988,19 @@ local function select_package(entry, dependency, callback, start)
         "https://search.maven.org/solrsearch/select?q="
             .. dependency
             .. "&rows="
-            .. tostring(request_rows)
+            .. tostring(requestRows)
             .. "&start="
             .. tostring(start)
             .. "&wt=json",
         function(err, content)
-            local items, ag_pairs, count, num_found, current = parse_packages_json(err, content)
+            local items, agPairs, count, numFound, current = parse_packages_json(err, content)
 
-            if items == nil or ag_pairs == nil or count == nil or num_found == nil then
+            if items == nil or agPairs == nil then
                 return
             end
 
-            local pages = math.ceil(num_found / request_rows)
-            local page = math.floor(current / request_rows) + 1
+            local pages = math.ceil(numFound / requestRows)
+            local page = math.floor(current / requestRows) + 1
 
             if pages > 1 and page < pages then
                 table.insert(items, "next (" .. tostring(page) .. "/" .. tostring(pages) .. ")")
@@ -986,16 +1014,86 @@ local function select_package(entry, dependency, callback, start)
                 end
 
                 if idx <= count then
-                    select_package_version(ag_pairs[item].g, ag_pairs[item].a, callback)
+                    select_package_version(agPairs[item].g, agPairs[item].a, callback)
                 else
-                    select_package(entry, dependency, callback, current + request_rows)
+                    select_package(entry, dependency, callback, current + requestRows)
                 end
             end)
         end
     )
 end
 
-function MavenToolsMainWindow.add_dependency()
+---@param entry TreeEntry|number|nil
+function MavenToolsMainWindow.add_dependency(entry)
+    if entry == nil then
+        entry = get_current_entry()
+    elseif type(entry) == "number" then
+        select_target(MavenToolsMainWindow.add_dependency)
+        return
+    end
+
+    if entry == nil then
+        return
+    end
+
+    local dependency = vim.fn.input("Search")
+
+    if dependency == nil or dependency == "" then
+        return
+    end
+
+    select_package(entry, dependency, function(groupId, artifactId, version)
+        local pomFile = mavenImporter.mavenInfoPomFile[tostring(entry.info)]
+
+        if pomFile == nil then
+            return
+        end
+
+        local file = io.open(pomFile, "r")
+
+        if not file then
+            return
+        end
+
+        local xmlContent = file:read("*all")
+
+        file:close()
+
+        local newDependency = string.format(
+            "    <dependency>\n        <groupId>%s</groupId>\n        <artifactId>%s</artifactId>\n        <version>%s</version>\n    </dependency>\n",
+            groupId,
+            artifactId,
+            version
+        )
+
+        local subCount
+        xmlContent, subCount = xmlContent:gsub("(</dependencies>)", newDependency .. "%1", 1)
+
+        if subCount == 0 then
+            xmlContent, subCount = xmlContent:gsub(
+                "(</project>)",
+                "   <dependencies>\n" .. newDependency .. "    </dependencies>\n" .. "%1",
+                1
+            )
+        end
+
+        if subCount == 1 then
+            file = io.open(pomFile, "w")
+
+            if not file then
+                return
+            end
+
+            file:write(xmlContent)
+            file:close()
+
+            MavenToolsMainWindow.open_file(pomFile)
+            MavenToolsMainWindow.refresh_entry()
+        end
+    end)
+end
+
+function MavenToolsMainWindow.add_local_dependency()
     local entry = get_current_entry()
 
     if entry == nil then
@@ -1008,78 +1106,31 @@ function MavenToolsMainWindow.add_dependency()
         return
     end
 
-    select_package(entry, dependency, function(group_id, artifact_id, version)
-        local pom_file = mavenImporter.mavenInfoPomFile[tostring(entry.info)]
+    local items = {}
 
-        if pom_file == nil then
-            return
-        end
-
-        local file = io.open(pom_file, "r")
-        if not file then
-            return
-        end
-
-        local xml_content = file:read("*all")
-
-        file:close()
-
-        local new_dependency = string.format(
-            "    <dependency>\n        <groupId>%s</groupId>\n        <artifactId>%s</artifactId>\n        <version>%s</version>\n    </dependency>\n",
-            group_id,
-            artifact_id,
-            version
-        )
-
-        local sub_count
-        xml_content, sub_count = xml_content:gsub("(</dependencies>)", new_dependency .. "%1", 1)
-
-        if sub_count == 0 then
-            xml_content, sub_count = xml_content:gsub(
-                "(</project>)",
-                "   <dependencies>\n" .. new_dependency .. "    </dependencies>\n" .. "%1",
-                1
-            )
-        end
-
-        if sub_count == 1 then
-            file = io.open(pom_file, "w")
-            if not file then
-                return
+    for mavenInfo, projectEntry in pairs(mavenImporter.mavenEntries) do
+        if mavenInfo:lower():match(dependency) then
+            table.insert(items, mavenInfo)
+        else
+            if projectEntry.children[5] ~= nil then
+                for _, dir in ipairs(projectEntry.children[5].children) do
+                    if dir.textObjs[2] ~= nil then
+                        if dir.textObjs[2].text:lower():match(dependency) then
+                            table.insert(items, mavenInfo)
+                            break
+                        end
+                    end
+                end
             end
-            file:write(xml_content)
-            file:close()
-
-            MavenToolsMainWindow.open_file(pom_file)
-            MavenToolsMainWindow.refresh_entry()
         end
-    end)
+    end
 
-    -- local items = {}
-    --
-    -- for k, v in pairs(Importer.Maven_Entries) do
-    --     if k:lower():match(dependency) then
-    --         table.insert(items, k)
-    --     else
-    --         if v.children[5] ~= nil then
-    --             for _, dir in ipairs(v.children[5].children) do
-    --                 if dir.textObjs[2] ~= nil then
-    --                     if dir.textObjs[2].text:lower():match(dependency) then
-    --                         table.insert(items, k)
-    --                         break
-    --                     end
-    --                 end
-    --             end
-    --         end
-    --     end
-    -- end
-    --
-    -- vim.ui.select(items, {
-    --     prompt = "Add Local Dependency (" .. entry.textObjs[2].text .. ")",
-    -- }, function(item, idx)
-    --     ---TODO:
-    --     print(item, idx)
-    -- end)
+    vim.ui.select(items, {
+        prompt = "Add Local Dependency (" .. entry.textObjs[2].text .. ")",
+    }, function(item, idx)
+        ---TODO:
+        print(item, idx)
+    end)
 end
 
 function MavenToolsMainWindow.download_sources()
@@ -1139,17 +1190,18 @@ function MavenToolsMainWindow.toggle_hide()
 
         local ignore = {}
 
-        for _, v in ipairs(config.ignore_files) do
+        for _, v in ipairs(config.ignoreFiles) do
             if v ~= mavenImporter.mavenInfoPomFile[tostring(entry.info)] then
                 table.insert(ignore, v)
             end
 
-            config.ignore_files = ignore
+            ---TODO: investigate why this is here?
+            config.ignoreFiles = ignore
         end
     else
         entry.hide = true
 
-        table.insert(config.ignore_files, mavenImporter.mavenInfoPomFile[tostring(entry.info)])
+        table.insert(config.ignoreFiles, mavenImporter.mavenInfoPomFile[tostring(entry.info)])
     end
 
     update_main_buffer()
@@ -1178,14 +1230,14 @@ function MavenToolsMainWindow.show_effective_pom()
         return
     end
 
-    MavenToolsImporter.effective_pom(entry, function(effective_pom)
-        local editor_win = utils.get_editor_window()
+    MavenToolsImporter.effective_pom(entry, function(effectivePom)
+        local editorWin = utils.get_editor_window()
 
-        if editor_win ~= nil then
+        if editorWin ~= nil then
             local buf = vim.api.nvim_create_buf(false, true)
 
-            vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.split(effective_pom, "\n"))
-            vim.api.nvim_win_set_buf(editor_win, buf)
+            vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.split(effectivePom, "\n"))
+            vim.api.nvim_win_set_buf(editorWin, buf)
             vim.api.nvim_buf_call(buf, function()
                 vim.api.nvim_command("setfiletype xml")
             end)
@@ -1195,17 +1247,17 @@ end
 
 function MavenToolsMainWindow.open_file(file)
     if file ~= nil then
-        local file_buf = utils.get_file_buffer(file)
+        local fileBuf = utils.get_file_buffer(file)
 
-        local editor_win = utils.get_editor_window()
+        local editorWin = utils.get_editor_window()
 
-        if editor_win ~= nil then
-            if file_buf == nil then
-                vim.api.nvim_win_call(editor_win, function()
+        if editorWin ~= nil then
+            if fileBuf == nil then
+                vim.api.nvim_win_call(editorWin, function()
                     vim.api.nvim_command("edit " .. file)
                 end)
             else
-                vim.api.nvim_win_set_buf(editor_win, file_buf)
+                vim.api.nvim_win_set_buf(editorWin, fileBuf)
             end
         end
     end
@@ -1230,11 +1282,11 @@ function MavenToolsMainWindow.show_error()
         return
     end
 
-    local error_msg = vim.fn.split(mavenImporter.pomFileError[entry.file], "\n")
+    local errorMsg = vim.fn.split(mavenImporter.pomFileError[entry.file], "\n")
 
     local buf = vim.api.nvim_create_buf(false, true)
 
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, error_msg)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, errorMsg)
 
     -- local editor_win = utils.get_editor_window()
     -- vim.api.width
