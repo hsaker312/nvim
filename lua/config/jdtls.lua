@@ -227,25 +227,51 @@ local function get_root()
     local path = vim.uv.cwd() .. "/.nvim/jdtls.json"
     local res_file = io.open(path, "r")
 
+    local root_dir = nil
+    local maven = nil
+
     if res_file then
         local res_str = res_file:read("*a")
         res_file:close()
         local json = vim.fn.json_decode(res_str)
-        return vim.uv.cwd() .. "/" .. json.root
+
+        if json.root ~= nil then
+            root_dir = vim.uv.cwd() .. json.root
+        end
+
+        if json.maven ~= nil then
+            maven = json.maven
+            maven.userSettings = home .. maven.userSettings
+            maven.localRepository = home .. maven.localRepository
+        end
     end
 
-    return jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
+    if root_dir == nil then
+        root_dir = jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
+    end
+
+    if maven ~= nil then
+        maven = {
+            branch = "headless",
+            downloadSources = true,
+            userSettings = home .. "/.m2/settings.xml",
+            localRepository = home .. "/maven",
+        }
+    end
+
+    return root_dir
 end
 
+print( vim.inspect(get_root()))
 local launcher, os_config, lombok = get_jdtls()
 local workspace_dir = get_workspace()
 local bundles = get_bundles()
-local root_dir = get_root()
+local root_dir, maven = get_root()
 local runtimes = get_runtimes()
 
 local function setup_jdtls()
     -- print(get_class_paths())
-    -- Get access to the jdtls plugin and all of its functionality 
+    -- Get access to the jdtls plugin and all of its functionality
 
     -- Get the paths to the jdtls jar, operating specific configuration directory, and lombok jar
 
@@ -312,7 +338,7 @@ local function setup_jdtls()
             project = {
                 referencedLibraries = {
                     -- "C:/Users/saker.helmy/msd/headless/components/headless/MqttCommon/src/main/java"
-                }
+                },
             },
             -- Enable code formatting
             format = {
@@ -328,12 +354,7 @@ local function setup_jdtls()
                 downloadSource = true,
             },
             -- Enable downloading archives from maven automatically
-            maven = {
-                branch = "headless",
-                downloadSources = true,
-                userSettings = home .. "/.m2/settings.xml",
-                localRepository = home .. "/maven",
-            },
+            maven = maven,
             -- Enable method signature help
             signatureHelp = {
                 enabled = true,
