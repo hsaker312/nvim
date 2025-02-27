@@ -165,7 +165,6 @@ vim.keymap.set("i", "<a-e>", "<end>", { noremap = true, silent = true, desc = "S
 
 vim.keymap.set("n", "V", "_vg_", { noremap = true, silent = true, desc = "Select line" })
 vim.keymap.set("n", "M", function()
-    -- require("lua")
     vim.ui.input({ prompt = "Delete Mark" }, function(value)
         if value == nil then
             return
