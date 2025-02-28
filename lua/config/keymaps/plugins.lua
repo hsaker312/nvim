@@ -3,7 +3,7 @@
 vim.keymap.set("n", "<leader>e", function()
     local snacks = require("snacks")
     ---@type fun(opt:snacks.picker.explorer.Config)
-    snacks.explorer({ hidden = true, ignored = true })
+    snacks.explorer({ follow = true, auto_close = true, hidden = true, ignored = true })
 end, { noremap = true, silent = true, desc = "File Explorer" })
 
 vim.keymap.set("n", "<A-C-;>", function()

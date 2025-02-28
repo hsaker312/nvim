@@ -139,11 +139,11 @@ local function make_shell_command(jdk, options)
     end
 
     if type(MavenToolsMavenConfig.settings) == "string" then
-        res = res .. ' "--settings ' .. MavenToolsMavenConfig.settings .. '" '
+        res = res .. ' --settings "' .. MavenToolsMavenConfig.settings .. '" '
     end
 
     if type(MavenToolsMavenConfig.toolchains) == "string" then
-        res = res .. ' "--toolchains ' .. MavenToolsMavenConfig.toolchains .. '" '
+        res = res .. ' --toolchains "' .. MavenToolsMavenConfig.toolchains .. '" '
     end
 
     if type(MavenToolsMavenConfig.activateProfiles) == "string" then
@@ -319,6 +319,7 @@ end
 function MavenToolsMavenConfig.update()
     importer = make_shell_command(MavenToolsMavenConfig.importerJdk, MavenToolsMavenConfig.importerOptions)
     runner = make_shell_command(MavenToolsMavenConfig.runnerJdk, MavenToolsMavenConfig.runnerOptions)
+    print(vim.inspect(runner))
 end
 
 return MavenToolsMavenConfig

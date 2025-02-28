@@ -6,6 +6,7 @@ local prefix = "maven-tools."
 ---@type MavenUtils
 local utils = require(prefix .. "utils")
 
+---@type Baleia
 local baleia = require(prefix .. "deps.baleia.lua.baleia").setup({ log = "ERROR" })
 
 ---@type integer|nil
@@ -77,6 +78,7 @@ end
 
 local function window_close_handler()
     consoleWin = nil
+    consoleBuf = nil
 
     for _, autocmd in ipairs(autocmds) do
         vim.api.nvim_del_autocmd(autocmd)

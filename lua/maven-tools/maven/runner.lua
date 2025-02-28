@@ -64,7 +64,7 @@ local function real_time_notification()
 
     if timer ~= nil then
         -- Start the timer to update every 1000 milliseconds (1 second)
-        timer:start(0, 250, vim.schedule_wrap(update_notification))
+        timer:start(0, 100, vim.schedule_wrap(update_notification))
 
         -- Stop the timer when Neovim exits
         vim.api.nvim_create_autocmd("VimLeavePre", {
@@ -111,6 +111,7 @@ function MavenToolsRunner.run(entry, pom_file, reset_callback, append_callback)
     end
 
     local pipeCmd = mavenConfig.runner_pipe_cmd(pom_file, { entry.command })
+    print(vim.inspect(pipeCmd))
     currentCommand = entry.command
 
     real_time_notification()
@@ -147,7 +148,8 @@ function MavenToolsRunner.run(entry, pom_file, reset_callback, append_callback)
             data = data:gsub("[\r\n|\n\r]", "\n"):gsub("\r", ""):gsub("\27%[m", "\27%[0m")
             msgBuf = msgBuf .. data
 
-            if msgBuf:sub(#msgBuf, #msgBuf) == "\n" then
+            local msgLen = #msgBuf
+            if msgBuf:sub(msgLen, msgLen) == "\n" then
                 for line in data:gmatch("[^\n]+") do
                     ---@cast line string
                     if line ~= "" then
