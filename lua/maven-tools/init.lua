@@ -9,6 +9,9 @@ local config = require(prefix .. "config.config")
 ---@type MavenToolsConfig
 local maven_config = require(prefix .. "config.maven")
 
+---@type MavenImporterNew
+local newImporter = require(prefix .. "maven.importer_new")
+
 ---@type MavenUtils
 local utils = require(prefix .. "utils")
 
@@ -139,6 +142,10 @@ local function toggle()
     require("maven-tools.ui.main"):start()
 end
 
+local function debug()
+    newImporter.update(vim.uv.cwd(), nil)
+end
+
 ---@class MavenToolsConfigOpts
 ---@field recursivePomSearch boolean|nil
 ---@field multiproject boolean|nil
@@ -226,6 +233,7 @@ function MavenTools.setup(opts)
 
             vim.schedule(function()
                 vim.api.nvim_create_user_command("MavenToolsToggle", toggle, {})
+                vim.api.nvim_create_user_command("MavenToolsDebug", debug, {})
                 vim.api.nvim_create_user_command("MavenToolsRun", 'lua require("maven-tools.ui.main").run(0)', {})
                 vim.api.nvim_create_user_command("MavenToolsAddDependency", 'lua require("maven-tools.ui.main").add_dependency(0)', {})
             end)

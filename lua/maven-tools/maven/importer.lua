@@ -420,7 +420,6 @@ local function process_plugin(pomFile, info, callback)
     end
 
     taskMgr:run(
-        pomFile,
         mavenConfig.importer_pipe_cmd(pomFile, {
             cmd,
         }),
@@ -875,7 +874,7 @@ function MavenToolsImporter.effective_pom(entry, callback)
         return
     end
 
-    taskMgr:run(pomFile, mavenConfig.importer_pipe_cmd(pomFile, { "help:effective-pom" }), function(xml)
+    taskMgr:run(mavenConfig.importer_pipe_cmd(pomFile, { "help:effective-pom" }), function(xml)
         local start = xml:find("<projects")
 
         ---@type integer|nil
@@ -911,7 +910,7 @@ local function process_pom_file_task(pomFile, refreshProjectInfo, callback)
     local pomXmlTree = xmlTreeHandler:new()
     local parser = xml2lua.parser(pomXmlTree)
 
-    taskMgr:run(pomFile, mavenConfig.importer_pipe_cmd(pomFile, { "help:effective-pom" }), function(xmlStr)
+    taskMgr:run(mavenConfig.importer_pipe_cmd(pomFile, { "help:effective-pom" }), function(xmlStr)
         local start = xmlStr:find("<projects")
 
         ---@type integer|nil

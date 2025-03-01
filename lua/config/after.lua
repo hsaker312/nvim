@@ -26,7 +26,7 @@ vim.opt.expandtab = true
 vim.opt.smartindent = true
 
 vim.opt.nu = true
-vim.opt.rnu = false --disable relative line number
+vim.opt.rnu = true --disable relative line number
 
 
 vim.opt.spelllang = "en_us"

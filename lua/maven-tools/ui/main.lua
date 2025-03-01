@@ -13,8 +13,29 @@
 ---@field a string
 ---@field g string
 
+---@class TextObjNew
+---@field text string
+---@field hl string
+
+---@alias TreeEntryType "entry"|"project"|"lifecycle"|"plugin"|"dependency"|"file"
+
+---@class TreeEntryNew
+---@field showAlways boolean
+---@field textObjs TextObjNew[]
+---@field expanded boolean|nil
+---@field callback fun(entry:TreeEntryNew):boolean
+---@field command string|nil
+---@field info MavenInfoNew|nil
+---@field file string|nil
+---@field error integer|nil
+---@field hide boolean|nil
+---@field type TreeEntryType
+
 ---@class MavenMainWindow
 MavenToolsMainWindow = {}
+
+---@type table<string, TreeEntryNew>
+local projects = {}
 
 local prefix = "maven-tools."
 

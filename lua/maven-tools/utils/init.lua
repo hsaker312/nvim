@@ -56,6 +56,11 @@ function MavenToolsUtils.array_join(t1, t2)
     return res
 end
 
+---@param str string
+function MavenToolsUtils.escape_match_specials(str)
+  return str:gsub("([()%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+end
+
 function MavenToolsUtils.table_join(t1, t2)
     local res = {}
 
@@ -101,7 +106,6 @@ function MavenToolsUtils.get_editor_window()
 
     return nil
 end
-
 
 ---@param ary table|nil
 --- @return Array
@@ -311,31 +315,105 @@ MavenToolsUtils.create_directories = function(path)
     return true
 end
 
---- @param path? string
---- @return Path?
-function MavenToolsUtils.Path(path)
-    --- @class Path
-    local obj = {}
+function MavenToolsUtils.flatten_map(tbl)
+    local result = {}
 
-    if path ~= nil and type(path) == "string" then
-        --- @type string
-        obj.str = path:gsub("\\", "/")
-    else
-        return
+    local function traverse(subtable, currentKey)
+        for key, value in pairs(subtable) do
+            local newKey = ""
+
+            if currentKey == "" then
+                newKey = key
+            else
+                newKey = currentKey .. "." .. key
+            end
+
+            if type(value) == "table" then
+                traverse(value, newKey)
+            else
+                result[newKey] = value
+            end
+        end
     end
 
-    --- @param self Path
+    traverse(tbl, "")
+
+    return result
+end
+
+function MavenToolsUtils.list_java_files(pomFile)
+    local pomDir = pomFile:match("(.*/)") or "./"
+    local javaFiles = {}
+
+    local function scan_directory(dir, relative_path)
+        local req = vim.uv.fs_scandir(dir)
+        if req then
+            while true do
+                local entry = vim.uv.fs_scandir_next(req)
+                if not entry then
+                    break
+                end
+
+                local fullPath = dir .. "/" .. entry
+                local relPath = relative_path .. "/" .. entry
+                local stat = vim.uv.fs_stat(fullPath)
+
+                if stat and stat.type == "directory" then
+                    -- Check if the directory contains a pom.xml file
+                    local pomCheck = vim.uv.fs_stat(fullPath .. "/pom.xml")
+
+                    if not pomCheck then
+                        scan_directory(fullPath, relPath)
+                    end
+                elseif entry:match("%.java$") then
+                    table.insert(javaFiles, relPath:sub(2)) -- Remove leading '/'
+                end
+            end
+        end
+    end
+
+    scan_directory(pomDir, "")
+
+    return javaFiles
+end
+
+--- @param path string
+--- @return Path
+function MavenToolsUtils.Path(path)
+    assert(type(path) == "string", "The path argument must be a string!")
+
+    ---@class Path
+    --- @field str string
+    --- @field len integer
+    local obj = {}
+
+    path = vim.fs.normalize(path)
+
+    obj.str = path:gsub("\\", "/")
+    obj.len = #obj.str
+    if obj.str:sub(obj.len, obj.len) == "/" then
+        obj.str = obj.str:sub(1, obj.len - 1)
+        obj.len = obj.len - 1
+    end
+
     --- @param otherPath string|Path
-    --- @return Path?
-    function obj.join(self, otherPath)
+    --- @return Path
+    function obj:join(otherPath)
+        assert(
+            type(otherPath) == "string" or type(otherPath) == "Path",
+            "Path:join argument must be a string or a Path!"
+        )
+
         if type(otherPath) == "string" then
             return self:join(require(prefix .. "utils").Path(otherPath))
         elseif type(otherPath) == "Path" then
-            if self.str:sub(#self.str, #self.str) == "/" then
+            if otherPath.str:sub(1, 1) == "/" then
                 return require(prefix .. "utils").Path(self.str .. otherPath.str)
             else
                 return require(prefix .. "utils").Path(self.str .. "/" .. otherPath.str)
             end
+        else
+            return require(prefix .. "utils").Path("")
         end
     end
 
@@ -381,9 +459,9 @@ function MavenToolsUtils.Path(path)
     --- @param self Path
     --- @return Path?
     function obj.dirname(self)
-        if self:is_file() then
-            return require(prefix .. "utils").Path(vim.fn.fnamemodify(self.str, ":h"))
-        end
+        return require(prefix .. "utils").Path(vim.fn.fnamemodify(self.str, ":h"))
+        -- if self:is_file() then
+        -- end
     end
 
     --- @param self Path
@@ -472,13 +550,6 @@ function MavenToolsUtils.Queue()
 
     return queue
 end
-
--- local path1 = M.Path("/home/helmy")
--- print(type(path1))
--- -- print(M.Path("C:\\users\\helmy").str)
--- for k, v in pairs(path1:readdir()) do
---     print(v:dirname())
--- end
 
 local function is_ignored(file)
     for _, ignore_file in ipairs(config.ignoreFiles) do
@@ -629,17 +700,15 @@ function MavenToolsUtils.Task_Mgr()
         end
     end
 
-    ---@param pom_file string
     ---@param pipe_cmd PipeCmd
     ---@param callback fun(msg: string):nil
     ---@return nil
-    function task_manager:run(pom_file, pipe_cmd, callback)
+    function task_manager:run(pipe_cmd, callback)
         local task_number = total_number_of_tasks
         total_number_of_tasks = total_number_of_tasks + 1
 
         ---@class Task_Info
         local task = {
-            pom_file = pom_file,
             task_number = task_number,
             pipe_cmd = pipe_cmd,
             callback = callback,
@@ -705,6 +774,27 @@ function MavenToolsUtils.Task_Mgr()
         end
 
         invoke_task(task)
+    end
+
+    ---@param file string
+    ---@param callback fun(lines: string):nil
+    function task_manager:readFile(file, callback)
+        local cmd
+        local cmdArgs = {}
+        if config.OS == "Windows" then
+            cmd = "powershell.exe"
+            table.insert(cmdArgs, "-NoProfile")
+            table.insert(cmdArgs, "-Command")
+            table.insert(cmdArgs, "Get-Content")
+            table.insert(cmdArgs, '"' .. file .. '"')
+        else
+            cmd = "sh"
+            table.insert(cmdArgs, "-c")
+            table.insert(cmdArgs, "cat")
+            table.insert(cmdArgs, '"' .. file .. '"')
+        end
+
+        self:run({ cmd = cmd, args = cmdArgs }, callback)
     end
 
     setmetatable(task_manager, {
