@@ -17,25 +17,27 @@
 ---@field text string
 ---@field hl string
 
----@alias TreeEntryType "entry"|"project"|"lifecycle"|"plugin"|"dependency"|"file"
+---@alias TreeEntryType "project"|"lifecycle"|"plugin"|"dependency"|"file"|"container"|"command"
+---@alias TreeEntryChildMap "projects"|"dependencies"|"plugins"|"files"
+
+---@class TreeEntryChild
+---@field map string
+---@field key string
 
 ---@class TreeEntryNew
 ---@field showAlways boolean
----@field textObjs TextObjNew[]
 ---@field expanded boolean|nil
----@field callback fun(entry:TreeEntryNew):boolean
----@field command string|nil
+---@field textObjs TextObjNew[]
+---@field children  TreeEntryNew[]|string[]
+---@field childrenKey string?
+---@field callback nil|fun():boolean
 ---@field info MavenInfoNew|nil
----@field file string|nil
 ---@field error integer|nil
 ---@field hide boolean|nil
 ---@field type TreeEntryType
 
 ---@class MavenMainWindow
 MavenToolsMainWindow = {}
-
----@type table<string, TreeEntryNew>
-local projects = {}
 
 local prefix = "maven-tools."
 
@@ -50,6 +52,9 @@ local utils = require(prefix .. "utils")
 
 ---@type MavenImporter
 local mavenImporter = require(prefix .. "maven.importer")
+
+---@type MavenImporterNew
+local mavenImporterNew = require(prefix .. "maven.importer_new")
 
 ---@type MavenRunner
 local runner = require(prefix .. "maven.runner")
@@ -83,6 +88,167 @@ local projectFilesUpdateTimer = nil
 
 ---@type integer
 local requestRows = 25
+
+local entriesMap = {
+    ---@type table<string, TreeEntryNew>
+    projects = {},
+
+    ---@type table<string, TreeEntryNew>
+    dependencies = {},
+
+    ---@type table<string, TreeEntryNew>
+    plugins = {},
+
+    ---@type table<string, TreeEntryNew>
+    files = {},
+}
+
+local function create_tree()
+    for mavenInfoStr, projectInfo in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
+        entriesMap.projects[mavenInfoStr] = {
+            showAlways = true,
+            expanded = false,
+            children = {},
+            textObjs = { { text = " ", hl = "@label" }, { text = projectInfo.name, hl = "@text" } },
+            callback = function()
+                entriesMap.projects[mavenInfoStr].expanded = not entriesMap.projects[mavenInfoStr].expanded
+                return true
+            end,
+            type = "project",
+        }
+
+        ---@type TreeEntryNew
+        local lifecycleContainer = {
+            showAlways = false,
+            expanded = false,
+            children = {},
+            textObjs = { { text = "󱂀 ", hl = "@label" }, { text = "Lifecycle", hl = "@text" } },
+            callback = nil,
+            type = "container",
+        }
+
+        lifecycleContainer.callback = function()
+            lifecycleContainer.expanded = not lifecycleContainer.expanded
+            return true
+        end
+
+        entriesMap.projects[mavenInfoStr].children[1] = lifecycleContainer
+
+        ---@type TreeEntryNew
+        local pluginsContainer = {
+            showAlways = false,
+            expanded = false,
+            children = {},
+            childrenKey = "plugins",
+            textObjs = { { text = "󱧽 ", hl = "@label" }, { text = "Plugins", hl = "@text" } },
+            callback = nil,
+            type = "container",
+        }
+
+        pluginsContainer.callback = function()
+            pluginsContainer.expanded = not pluginsContainer.expanded
+            return true
+        end
+
+        entriesMap.projects[mavenInfoStr].children[2] = pluginsContainer
+
+        for _, pluginInfo in ipairs(projectInfo.plugins) do
+            local pluginInfoStr = tostring(pluginInfo)
+
+            -- table.insert(pluginsContainer.children, pluginInfoStr)
+
+            if
+                MavenToolsImporterNew.pluginInfoToPluginMap[pluginInfoStr] ~= nil
+                and entriesMap.plugins[pluginInfoStr] == nil
+            then
+                entriesMap.plugins[pluginInfoStr] = {
+                    showAlways = true,
+                    expanded = false,
+                    children = {},
+                    textObjs = {
+                        { text = " ", hl = "@label" },
+                        { text = MavenToolsImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal, hl = "@text" },
+                    },
+                    callback = function()
+                        entriesMap.plugins[pluginInfoStr].expanded = not entriesMap.plugins[pluginInfoStr].expanded
+                        return true
+                    end,
+                    type = "plugin",
+                }
+
+                for _, pluginCommand in ipairs(MavenToolsImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands) do
+                    ---@type TreeEntryNew
+                    local pluginCommandEntry = {
+                        showAlways = true,
+                        expanded = false,
+                        children = {},
+                        textObjs = {
+                            { text = " ", hl = "@label" },
+                            { text = pluginCommand, hl = "@text" },
+                        },
+                        callback = nil,
+                        type = "command",
+                    }
+
+                    pluginCommandEntry.callback = function()
+                        runner.run(
+                            { command = pluginCommand },
+                            projectInfo.pomFile,
+                            console.console_reset,
+                            console.console_append
+                        )
+
+                        return false
+                    end
+
+                    table.insert(entriesMap.plugins[pluginInfoStr].children, pluginCommandEntry)
+                end
+            end
+        end
+
+        ---@type TreeEntryNew
+        local dependenciesContainer = {
+            showAlways = false,
+            expanded = false,
+            children = {},
+            textObjs = { { text = " ", hl = "@label" }, { text = "Dependencies", hl = "@text" } },
+            callback = nil,
+            type = "container",
+        }
+
+        dependenciesContainer.callback = function()
+            dependenciesContainer.expanded = not dependenciesContainer.expanded
+            return true
+        end
+
+        entriesMap.projects[mavenInfoStr].children[3] = dependenciesContainer
+
+        ---@type TreeEntryNew
+        local filesContainer = {
+            showAlways = false,
+            expanded = false,
+            children = {},
+            textObjs = {},
+            callback = nil,
+            type = "container",
+        }
+
+        filesContainer.callback = function()
+            filesContainer.expanded = not filesContainer.expanded
+            return true
+        end
+
+        entriesMap.projects[mavenInfoStr].children[4] = filesContainer
+    end
+
+    local file = io.open(utils.Path(vim.uv.cwd()):join("debug.txt").str, "w")
+    file:write(vim.inspect(entriesMap))
+    file:close()
+end
+
+function MavenToolsMainWindow.debug_new()
+    MavenToolsImporterNew.update(vim.uv.cwd(), create_tree)
+end
 
 ---@type table<"0"|"1"|"2"|"3",fun(entry:TreeEntry):fun():boolean>
 local entryCallbackMap = {
@@ -764,22 +930,22 @@ end
 
 ---@param callback fun(entry:TreeEntry)
 local function select_target(callback)
-        local items = {}
-        local entries = {}
+    local items = {}
+    local entries = {}
 
-        for info, project in pairs(mavenImporter.mavenEntries) do
-            table.insert(items, project.textObjs[2].text .. "(" .. info .. ")")
-            table.insert(entries, project)
+    for info, project in pairs(mavenImporter.mavenEntries) do
+        table.insert(items, project.textObjs[2].text .. "(" .. info .. ")")
+        table.insert(entries, project)
+    end
+
+    vim.ui.select(items, {
+        prompt = "Select target project",
+    }, function(item, idx)
+        if idx ~= nil then
+            callback(entries[idx])
         end
-
-        vim.ui.select(items, {
-            prompt = "Select target project",
-        }, function (item, idx)
-            if idx ~= nil then
-                callback(entries[idx])
-            end
-        end)
-        return
+    end)
+    return
 end
 
 ---@param entry TreeEntry|number|nil

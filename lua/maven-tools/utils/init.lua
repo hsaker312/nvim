@@ -341,42 +341,6 @@ function MavenToolsUtils.flatten_map(tbl)
     return result
 end
 
-function MavenToolsUtils.list_java_files(pomFile)
-    local pomDir = pomFile:match("(.*/)") or "./"
-    local javaFiles = {}
-
-    local function scan_directory(dir, relative_path)
-        local req = vim.uv.fs_scandir(dir)
-        if req then
-            while true do
-                local entry = vim.uv.fs_scandir_next(req)
-                if not entry then
-                    break
-                end
-
-                local fullPath = dir .. "/" .. entry
-                local relPath = relative_path .. "/" .. entry
-                local stat = vim.uv.fs_stat(fullPath)
-
-                if stat and stat.type == "directory" then
-                    -- Check if the directory contains a pom.xml file
-                    local pomCheck = vim.uv.fs_stat(fullPath .. "/pom.xml")
-
-                    if not pomCheck then
-                        scan_directory(fullPath, relPath)
-                    end
-                elseif entry:match("%.java$") then
-                    table.insert(javaFiles, relPath:sub(2)) -- Remove leading '/'
-                end
-            end
-        end
-    end
-
-    scan_directory(pomDir, "")
-
-    return javaFiles
-end
-
 --- @param path string
 --- @return Path
 function MavenToolsUtils.Path(path)
@@ -504,6 +468,45 @@ function MavenToolsUtils.Path(path)
     })
 
     return obj
+end
+
+---@param pomFile string
+---@return string[]
+function MavenToolsUtils.list_java_files(pomFile)
+    local pomDir = pomFile:match("(.*/)") or "./"
+    local javaFiles = {}
+
+    local function scan_directory(dir)
+        local req = vim.uv.fs_scandir(dir)
+
+        if req then
+            while true do
+                local entry = vim.uv.fs_scandir_next(req)
+                if not entry then
+                    break
+                end
+
+                local fullPath = MavenToolsUtils.Path(dir):join(entry).str
+                -- local relPath = relative_path .. "/" .. entry
+                local stat = vim.uv.fs_stat(fullPath)
+
+                if stat and stat.type == "directory" then
+                    -- Check if the directory contains a pom.xml file
+                    local pomCheck = vim.uv.fs_stat(fullPath .. "/pom.xml")
+
+                    if not pomCheck then
+                        scan_directory(fullPath)
+                    end
+                elseif entry:match("%.java$") then
+                    table.insert(javaFiles, fullPath) -- Remove leading '/'
+                end
+            end
+        end
+    end
+
+    scan_directory(pomDir)
+
+    return javaFiles
 end
 
 --- @return Queue

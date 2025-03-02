@@ -20,6 +20,8 @@
 ---@field plugins MavenInfoNew[]
 ---@field modules string[]
 ---@field pomFile string?
+---@field files table<string, string[]>
+---@field testFiles table<string, string[]>
 ---@field sourceDirectory string?
 ---@field scriptSourceDirectory string?
 ---@field testSourceDirectory string?
@@ -113,7 +115,6 @@ MavenToolsImporterNew.pomFileIsModuleSet = {}
 
 ---@type table<string, PluginInfo>
 local pendingPlugins = {}
-
 
 local function set_project_entry_to_error_state(...) end
 
@@ -222,7 +223,8 @@ local function process_effective_pom_project_sub_tree(xmlProjectSubTree, pomFile
     }
 
     if pomFile ~= nil then
-        MavenToolsImporterNew.pomFileToMavenInfoMap[pomFile.str] = { info = mavenInfo, checksum = tostring(utils.file_checksum(pomFile.str)) }
+        MavenToolsImporterNew.pomFileToMavenInfoMap[pomFile.str] =
+            { info = mavenInfo, checksum = tostring(utils.file_checksum(pomFile.str)) }
     end
 
     if xmlProjectSubTree.modules ~= nil and xmlProjectSubTree.modules.module ~= nil then
@@ -425,7 +427,7 @@ local function start_resolve_plugin_goals_task(pomFile, mavenInfo)
                 else
                     if line:match("^" .. utils.escape_match_specials(plugin.goal) .. ":") then
                         local command = line:gsub(plugin.goal .. ":", ""):gsub("\n", "")
-                        table.insert(plugin.commands,  command )
+                        table.insert(plugin.commands, command)
                     end
                 end
             end
@@ -468,16 +470,68 @@ local function idle_callback_init()
         MavenToolsImporterNew.status = "Resolving plugins"
 
         taskMgr:set_on_idle_callback(function()
-            assert(cwd ~= nil, "")
-            local file = io.open(cwd:join("debug.txt").str, "w")
+            for pomFile, mavenInfo in pairs(MavenToolsImporterNew.pomFileToMavenInfoMap) do
+                local projectFiles = {}
+                local projectTestFiles = {}
+                local javaFiles = utils.list_java_files(pomFile)
+                local filesPrefix =
+                    MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].sourceDirectory
+                local testFilesPrefix =
+                    MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].testSourceDirectory
 
-            if file ~= nil then
-                file:write(vim.inspect(MavenToolsImporterNew.mavenInfoToProjectInfoMap))
-                file:write(vim.inspect(MavenToolsImporterNew.pomFileToMavenInfoMap))
-                file:write(vim.inspect(MavenToolsImporterNew.pomFileIsModuleSet))
-                file:write(vim.inspect(pendingPlugins))
-                file:write(vim.inspect(MavenToolsImporterNew.pluginInfoToPluginMap))
+                for _, javaFile in ipairs(javaFiles) do
+                    local relativePath, count = javaFile:gsub(filesPrefix .. "/", "")
+
+                    if count == 1 then
+                        local dir, filename = relativePath:match("(.*/)([^/]*)$")
+
+                        if dir and filename then
+                            ---@cast dir string
+                            ---@cast filename string
+
+                            local package = dir:gsub("/", ".")
+
+                            if package:match("%.$") then
+                                package = package:sub(1, -2) -- remove trailing '.'
+                            end
+
+                            if projectFiles[package] == nil then
+                                projectFiles[package] = {}
+                            end
+
+                            table.insert(projectFiles[package], filename)
+                        end
+                    else
+                        relativePath, count = javaFile:gsub(testFilesPrefix .. "/", "")
+
+                        if count == 1 then
+                            local dir, filename = relativePath:match("(.*/)([^/]*)$")
+
+                            if dir and filename then
+                                ---@cast dir string
+                                ---@cast filename string
+
+                                local package = dir:gsub("/", ".")
+
+                                if package:match("%.$") then
+                                    package = package:sub(1, -2) -- remove trailing '.'
+                                end
+
+                                if projectTestFiles[package] == nil then
+                                    projectTestFiles[package] = {}
+                                end
+
+                                table.insert(projectTestFiles[package], filename)
+                            end
+                        end
+                    end
+                end
+
+                MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].files = projectFiles
+                MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].testFiles = projectTestFiles
             end
+
+            vim.schedule(update_callback)
 
             print("done!")
         end)

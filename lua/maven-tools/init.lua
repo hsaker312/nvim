@@ -143,7 +143,7 @@ local function toggle()
 end
 
 local function debug()
-    newImporter.update(vim.uv.cwd(), nil)
+    require("maven-tools.ui.main").debug_new()
 end
 
 ---@class MavenToolsConfigOpts
