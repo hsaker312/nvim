@@ -703,6 +703,12 @@ function MavenToolsUtils.Task_Mgr()
         end
     end
 
+    function task_manager:trigger_idle_callback_if_idle()
+        if self:idle() then
+            self:trigger_idle_callback()
+        end
+    end
+
     ---@param pipe_cmd PipeCmd
     ---@param callback fun(msg: string):nil
     ---@return nil
@@ -793,8 +799,7 @@ function MavenToolsUtils.Task_Mgr()
         else
             cmd = "sh"
             table.insert(cmdArgs, "-c")
-            table.insert(cmdArgs, "cat")
-            table.insert(cmdArgs, '"' .. file .. '"')
+            table.insert(cmdArgs, "cat \"" .. file .. "\"")
         end
 
         self:run({ cmd = cmd, args = cmdArgs }, callback)

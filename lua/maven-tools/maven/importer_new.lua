@@ -269,6 +269,7 @@ end
 ---@param pomFile Path?
 local function start_pom_file_processor_task(pomFile, refreshProjectInfo)
     MavenToolsImporterNew.status = "Processing POM files"
+    print(MavenToolsImporterNew.status)
 
     assert(pomFile ~= nil, "")
 
@@ -350,13 +351,14 @@ end
 
 ---@param pomFile Path
 local function start_resolve_maven_info_pom_file_task(pomFile, refreshProjectInfo)
-    assert(pomFile ~= nil, "")
+    assert(pomFile ~= nil, "Invalid pom file")
 
     if MavenToolsImporterNew.pomFileToMavenInfoMap[pomFile.str] ~= nil then
         return -- already processed
     end
 
     taskMgr:readFile(pomFile.str, function(pomFileContent)
+        print(pomFileContent)
         local pomXml = xmlTreeHandler:new()
         local pomParser = xml2lua.parser(pomXml)
         local success = pcall(pomParser.parse, pomParser, pomFileContent)
@@ -461,13 +463,16 @@ end
 
 local function idle_callback_init()
     MavenToolsImporterNew.status = "Resolving projects"
+    print(MavenToolsImporterNew.status)
 
     taskMgr:set_on_idle_callback(function()
         MavenToolsImporterNew.status = "Resolving modules"
+        print(MavenToolsImporterNew.status)
 
         update_modules_and_pending_plugins()
 
         MavenToolsImporterNew.status = "Resolving plugins"
+        print(MavenToolsImporterNew.status)
 
         taskMgr:set_on_idle_callback(function()
             for pomFile, mavenInfo in pairs(MavenToolsImporterNew.pomFileToMavenInfoMap) do
@@ -545,18 +550,20 @@ local function idle_callback_init()
             end
         end
 
-        if pluginTasks == 0 then
-            taskMgr:trigger_idle_callback()
-        end
+        taskMgr:trigger_idle_callback_if_idle()
     end)
 
     for _, pomFile in ipairs(MavenToolsImporterNew.pomFiles) do
         start_resolve_maven_info_pom_file_task(utils.Path(pomFile))
     end
+
+    taskMgr:trigger_idle_callback_if_idle()
 end
 
 function MavenToolsImporterNew.update(dir, callback)
     MavenToolsImporterNew.status = "Looking of pom.xml files"
+    print(MavenToolsImporterNew.status)
+
     update_callback = callback
     cwd = utils.Path(dir)
     assert(cwd ~= nil, "")
