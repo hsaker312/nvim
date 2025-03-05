@@ -21,7 +21,7 @@ MavenToolsConfig.refreshOnStartup = false
 MavenToolsConfig.localConfigDir = ".nvim/.maven"
 
 ---@type integer
-MavenToolsConfig.maxParallelJobs = 4
+MavenToolsConfig.maxParallelJobs = 8
 
 ---@type string[]
 MavenToolsConfig.ignoreFiles = {
@@ -49,5 +49,27 @@ MavenToolsConfig.showRepositories = true
 MavenToolsConfig.showFiles = true
 MavenToolsConfig.autoRefreshProjectFiles = true
 MavenToolsConfig.cacheEntries = true
+MavenToolsConfig.followBufferFile = true
+
+MavenToolsConfig.signHighlight = "@SignColomn"
+MavenToolsConfig.commentHighlight = "@comment"
+MavenToolsConfig.containerIconHighlight = "MavenToolsContainerIcon"
+MavenToolsConfig.containerTextHighlight = "@text"
+MavenToolsConfig.projectIconHighlight = "MavenToolsProjectIcon"
+MavenToolsConfig.projectTextHighlight = "@text"
+MavenToolsConfig.projectErrorIconHighlight = "MavenToolsProjectIcon"
+MavenToolsConfig.projectErrorTextHighlight = "DiagnosticUnderlineError"
+MavenToolsConfig.lifecycleIconHighlight = "@label"
+MavenToolsConfig.lifecycleTextHighlight = "@text"
+MavenToolsConfig.pluginIconHighlight = "@label"
+MavenToolsConfig.pluginTextHighlight = "@text"
+MavenToolsConfig.dependencyIconHighlight = "@label"
+MavenToolsConfig.dependencyTextHighlight = "@text"
+MavenToolsConfig.packageIconHighlight = "MavenToolsJavaPackageIcon"
+MavenToolsConfig.packageTextHighlight = "@text"
+MavenToolsConfig.testPackageIconHighlight = "MavenToolsJavaTestPackageIcon"
+MavenToolsConfig.testPackageTextHighlight = "@text"
+MavenToolsConfig.fileIconHighlight = "MavenToolsJavaFileIcon"
+MavenToolsConfig.fileTextHighlight = "@text"
 
 return MavenToolsConfig

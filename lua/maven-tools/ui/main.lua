@@ -17,7 +17,7 @@
 ---@field text string
 ---@field hl string
 
----@alias TreeEntryType "project"|"lifecycle"|"plugin"|"dependency"|"file"|"container"|"command"
+---@alias TreeEntryType "project"|"lifecycle"|"plugin"|"dependency"|"file"|"container"|"command"|"error"
 ---@alias TreeEntryChildMap "projects"|"dependencies"|"plugins"|"files"
 
 ---@class TreeEntryChild
@@ -68,6 +68,13 @@ local mavenBuf = nil
 ---@type table<integer,fun(entry:TreeEntry):boolean>
 local lineCallback = {}
 
+---@class JavaFileTracker
+---@field entries EntryInfo[]
+---@field line integer
+
+---@type table<string, JavaFileTracker>
+local javaFilesMap = {}
+
 ---@type table<integer,integer?>
 local lineRange = {}
 
@@ -102,153 +109,6 @@ local entriesMap = {
     ---@type table<string, TreeEntryNew>
     files = {},
 }
-
-local function create_tree()
-    for mavenInfoStr, projectInfo in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
-        entriesMap.projects[mavenInfoStr] = {
-            showAlways = true,
-            expanded = false,
-            children = {},
-            textObjs = { { text = " ", hl = "@label" }, { text = projectInfo.name, hl = "@text" } },
-            callback = function()
-                entriesMap.projects[mavenInfoStr].expanded = not entriesMap.projects[mavenInfoStr].expanded
-                return true
-            end,
-            type = "project",
-        }
-
-        ---@type TreeEntryNew
-        local lifecycleContainer = {
-            showAlways = false,
-            expanded = false,
-            children = {},
-            textObjs = { { text = "󱂀 ", hl = "@label" }, { text = "Lifecycle", hl = "@text" } },
-            callback = nil,
-            type = "container",
-        }
-
-        lifecycleContainer.callback = function()
-            lifecycleContainer.expanded = not lifecycleContainer.expanded
-            return true
-        end
-
-        entriesMap.projects[mavenInfoStr].children[1] = lifecycleContainer
-
-        ---@type TreeEntryNew
-        local pluginsContainer = {
-            showAlways = false,
-            expanded = false,
-            children = {},
-            childrenKey = "plugins",
-            textObjs = { { text = "󱧽 ", hl = "@label" }, { text = "Plugins", hl = "@text" } },
-            callback = nil,
-            type = "container",
-        }
-
-        pluginsContainer.callback = function()
-            pluginsContainer.expanded = not pluginsContainer.expanded
-            return true
-        end
-
-        entriesMap.projects[mavenInfoStr].children[2] = pluginsContainer
-
-        for _, pluginInfo in ipairs(projectInfo.plugins) do
-            local pluginInfoStr = tostring(pluginInfo)
-
-            -- table.insert(pluginsContainer.children, pluginInfoStr)
-
-            if
-                MavenToolsImporterNew.pluginInfoToPluginMap[pluginInfoStr] ~= nil
-                and entriesMap.plugins[pluginInfoStr] == nil
-            then
-                entriesMap.plugins[pluginInfoStr] = {
-                    showAlways = true,
-                    expanded = false,
-                    children = {},
-                    textObjs = {
-                        { text = " ", hl = "@label" },
-                        { text = MavenToolsImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal, hl = "@text" },
-                    },
-                    callback = function()
-                        entriesMap.plugins[pluginInfoStr].expanded = not entriesMap.plugins[pluginInfoStr].expanded
-                        return true
-                    end,
-                    type = "plugin",
-                }
-
-                for _, pluginCommand in ipairs(MavenToolsImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands) do
-                    ---@type TreeEntryNew
-                    local pluginCommandEntry = {
-                        showAlways = true,
-                        expanded = false,
-                        children = {},
-                        textObjs = {
-                            { text = " ", hl = "@label" },
-                            { text = pluginCommand, hl = "@text" },
-                        },
-                        callback = nil,
-                        type = "command",
-                    }
-
-                    pluginCommandEntry.callback = function()
-                        runner.run(
-                            { command = pluginCommand },
-                            projectInfo.pomFile,
-                            console.console_reset,
-                            console.console_append
-                        )
-
-                        return false
-                    end
-
-                    table.insert(entriesMap.plugins[pluginInfoStr].children, pluginCommandEntry)
-                end
-            end
-        end
-
-        ---@type TreeEntryNew
-        local dependenciesContainer = {
-            showAlways = false,
-            expanded = false,
-            children = {},
-            textObjs = { { text = " ", hl = "@label" }, { text = "Dependencies", hl = "@text" } },
-            callback = nil,
-            type = "container",
-        }
-
-        dependenciesContainer.callback = function()
-            dependenciesContainer.expanded = not dependenciesContainer.expanded
-            return true
-        end
-
-        entriesMap.projects[mavenInfoStr].children[3] = dependenciesContainer
-
-        ---@type TreeEntryNew
-        local filesContainer = {
-            showAlways = false,
-            expanded = false,
-            children = {},
-            textObjs = {},
-            callback = nil,
-            type = "container",
-        }
-
-        filesContainer.callback = function()
-            filesContainer.expanded = not filesContainer.expanded
-            return true
-        end
-
-        entriesMap.projects[mavenInfoStr].children[4] = filesContainer
-    end
-
-    local file = io.open(utils.Path(vim.uv.cwd()):join("debug.txt").str, "w")
-    file:write(vim.inspect(entriesMap))
-    file:close()
-end
-
-function MavenToolsMainWindow.debug_new()
-    MavenToolsImporterNew.update(vim.uv.cwd(), create_tree)
-end
 
 ---@type table<"0"|"1"|"2"|"3",fun(entry:TreeEntry):fun():boolean>
 local entryCallbackMap = {
@@ -311,6 +171,10 @@ local function set_main_window_options(win)
         win = win,
     })
 
+    vim.api.nvim_set_option_value("rnu", false, {
+        win = win,
+    })
+
     vim.api.nvim_set_option_value("spell", false, {
         win = win,
     })
@@ -322,7 +186,7 @@ local function create_main_window(buf)
     local win = vim.api.nvim_open_win(buf, true, {
         split = "right",
         win = -1,
-        width = 40,
+        width = 50,
     })
 
     set_main_window_options(win)
@@ -429,8 +293,12 @@ local function create_header(lines, highlights)
         colEnd = #header,
     })
 
-    if not mavenImporter.idle() then
-        local progress = " (importing " .. tostring(mavenImporter.progress()):gsub("%.%d+", "") .. "%)"
+    if not mavenImporterNew.idle() then
+        local progress = " ("
+            .. mavenImporterNew.status
+            .. " "
+            .. tostring(mavenImporterNew.progress()):gsub("%.%d+", "")
+            .. "%)"
 
         table.insert(highlights, {
             highlight = "@comment",
@@ -696,6 +564,807 @@ local function generate_main_buffer_lines()
     return lines, highlights
 end
 
+---@class EntryInfo
+---@field expanded boolean
+
+local entriesInfo = {
+    ---@type table<string, EntryInfo>
+    projects = {},
+
+    ---@type table<string, EntryInfo>
+    plugins = {},
+
+    container = {
+        ---@type table<string, EntryInfo>
+        lifecycle = {},
+
+        ---@type table<string, EntryInfo>
+        plugins = {},
+
+        ---@type table<string, EntryInfo>
+        dependencies = {},
+
+        ---@type table<string, EntryInfo>
+        files = {},
+
+        ---@type table<string, table<"files"|"tests", table<string, EntryInfo>>>
+        folders = {},
+    },
+}
+
+---@type table<integer, fun(callback:fun(entryType:TreeEntryType, entryInfo:EntryInfo?, projectInfo:ProjectInfo|nil, args:table))>
+local lineCallbackNew = {}
+
+---@param lineNum integer
+---@param line string
+---@param str string
+---@param hl string
+---@param highlights Highlight[]
+---@return string
+local function line_cat_highlight(lineNum, line, str, hl, highlights)
+    local highlight = { highlight = hl, lineNum = lineNum }
+    highlight.colBegin = #line
+    line = line .. str
+    highlight.colEnd = #line
+
+    table.insert(highlights, highlight)
+
+    return line
+end
+
+---@param currentTab string
+---@param mavenInfoStr string
+---@param projectInfo ProjectInfo
+---@param lines Array
+---@param highlights Highlight[]
+local function generate_project_lifecycle_lines(currentTab, mavenInfoStr, projectInfo, lines, highlights)
+    if config.lifecycleCommands[1] == nil or config.showLifecycle == false then
+        return
+    end
+
+    if entriesInfo.container.lifecycle[mavenInfoStr] == nil then
+        entriesInfo.container.lifecycle[mavenInfoStr] = { expanded = false }
+    end
+
+    local line = currentTab
+
+    line = line_cat_highlight(
+        lines:size(),
+        line,
+        entriesInfo.container.lifecycle[mavenInfoStr].expanded and " " or " ",
+        config.signHighlight,
+        highlights
+    )
+
+    line = line_cat_highlight(lines:size(), line, "󱂀 ", config.containerIconHighlight, highlights)
+
+    lineRange[lines:size() + 1] = #line
+
+    line = line_cat_highlight(lines:size(), line, "Lifecycle", config.containerTextHighlight, highlights)
+
+    lines:append(line)
+
+    lineCallbackNew[lines:size()] = function(callback)
+        return callback("container", entriesInfo.container.lifecycle[mavenInfoStr], projectInfo, {})
+    end
+
+    if entriesInfo.container.lifecycle[mavenInfoStr].expanded then
+        currentTab = currentTab .. config.tab
+
+        for _, lifecycle in ipairs(config.lifecycleCommands) do
+            line = currentTab
+
+            line = line_cat_highlight(lines:size(), line, " ", config.lifecycleIconHighlight, highlights)
+
+            lineRange[lines:size() + 1] = #line
+
+            line = line_cat_highlight(lines:size(), line, lifecycle, config.lifecycleTextHighlight, highlights)
+
+            lines:append(line)
+
+            lineCallbackNew[lines:size()] = function(callback)
+                return callback(
+                    "command",
+                    entriesInfo.container.lifecycle[mavenInfoStr],
+                    projectInfo,
+                    { command = lifecycle }
+                )
+            end
+        end
+    end
+end
+
+---@param currentTab string
+---@param mavenInfoStr string
+---@param projectInfo ProjectInfo
+---@param lines Array
+---@param highlights Highlight[]
+local function generate_project_dependencies_lines(currentTab, mavenInfoStr, projectInfo, lines, highlights)
+    if projectInfo.dependencies[1] == nil or config.showDependencies == false then
+        return
+    end
+
+    if entriesInfo.container.dependencies[mavenInfoStr] == nil then
+        entriesInfo.container.dependencies[mavenInfoStr] = { expanded = false }
+    end
+
+    local line = currentTab
+
+    line = line_cat_highlight(
+        lines:size(),
+        line,
+        entriesInfo.container.dependencies[mavenInfoStr].expanded and " " or " ",
+        config.signHighlight,
+        highlights
+    )
+
+    line = line_cat_highlight(lines:size(), line, " ", config.containerIconHighlight, highlights)
+
+    lineRange[lines:size() + 1] = #line
+
+    line = line_cat_highlight(lines:size(), line, "Dependencies", config.containerTextHighlight, highlights)
+
+    lines:append(line)
+
+    lineCallbackNew[lines:size()] = function(callback)
+        return callback("container", entriesInfo.container.dependencies[mavenInfoStr], projectInfo, {})
+    end
+
+    if entriesInfo.container.dependencies[mavenInfoStr].expanded then
+        currentTab = currentTab .. config.tab
+
+        for _, dependency in ipairs(projectInfo.dependencies) do
+            line = currentTab
+
+            line = line_cat_highlight(lines:size(), line, " ", config.dependencyIconHighlight, highlights)
+
+            lineRange[lines:size() + 1] = #line
+
+            if dependency.groupId ~= nil then
+                line = line_cat_highlight(
+                    lines:size(),
+                    line,
+                    dependency.groupId,
+                    config.dependencyTextHighlight,
+                    highlights
+                )
+            end
+
+            if dependency.artifactId ~= nil then
+                line = line_cat_highlight(
+                    lines:size(),
+                    line,
+                    ":" .. dependency.artifactId,
+                    config.dependencyTextHighlight,
+                    highlights
+                )
+            end
+
+            if dependency.version ~= nil then
+                line = line_cat_highlight(
+                    lines:size(),
+                    line,
+                    ":" .. dependency.version,
+                    config.dependencyTextHighlight,
+                    highlights
+                )
+            end
+
+            if dependency.scope ~= nil and dependency.scope ~= "compile" then
+                line = line_cat_highlight(
+                    lines:size(),
+                    line,
+                    " (" .. dependency.scope .. ")",
+                    config.commentHighlight,
+                    highlights
+                )
+            end
+
+            lines:append(line)
+
+            lineCallbackNew[lines:size()] = function(callback)
+                return callback("dependency", nil, projectInfo, {})
+            end
+        end
+    end
+end
+
+---@param currentTab string
+---@param mavenInfoStr string
+---@param projectInfo ProjectInfo
+---@param lines Array
+---@param highlights Highlight[]
+local function generate_project_plugins_lines(currentTab, mavenInfoStr, projectInfo, lines, highlights)
+    if projectInfo.plugins[1] == nil or config.showPlugins == false then
+        return
+    end
+
+    if entriesInfo.container.plugins[mavenInfoStr] == nil then
+        entriesInfo.container.plugins[mavenInfoStr] = { expanded = false }
+    end
+
+    local line = currentTab
+
+    line = line_cat_highlight(
+        lines:size(),
+        line,
+        entriesInfo.container.plugins[mavenInfoStr].expanded and " " or " ",
+        config.signHighlight,
+        highlights
+    )
+
+    line = line_cat_highlight(lines:size(), line, "󱧽 ", config.containerIconHighlight, highlights)
+
+    lineRange[lines:size() + 1] = #line
+
+    line = line_cat_highlight(lines:size(), line, "Plugins", config.containerTextHighlight, highlights)
+
+    lines:append(line)
+
+    lineCallbackNew[lines:size()] = function(callback)
+        return callback("container", entriesInfo.container.plugins[mavenInfoStr], projectInfo, {})
+    end
+
+    if entriesInfo.container.plugins[mavenInfoStr].expanded then
+        currentTab = currentTab .. config.tab
+
+        for _, plugin in ipairs(projectInfo.plugins) do
+            local pluginInfoStr = mavenImporterNew.info_to_str(plugin)
+
+            if entriesInfo.plugins[pluginInfoStr] == nil then
+                entriesInfo.plugins[pluginInfoStr] = { expanded = false }
+            end
+
+            if mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr] ~= nil then
+                line = currentTab
+
+                local sign
+
+                if mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands[1] ~= nil then
+                    if entriesInfo.plugins[pluginInfoStr].expanded then
+                        sign = " "
+                    else
+                        sign = " "
+                    end
+                else
+                    sign = "  "
+                end
+
+                line = line_cat_highlight(lines:size(), line, sign, config.signHighlight, highlights)
+
+                line = line_cat_highlight(lines:size(), line, " ", config.pluginIconHighlight, highlights)
+
+                lineRange[lines:size() + 1] = #line
+
+                line = line_cat_highlight(
+                    lines:size(),
+                    line,
+                    mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal,
+                    config.pluginTextHighlight,
+                    highlights
+                )
+
+                lines:append(line)
+
+                lineCallbackNew[lines:size()] = function(callback)
+                    return callback(
+                        "plugin",
+                        entriesInfo.plugins[pluginInfoStr],
+                        projectInfo,
+                        { infoStr = pluginInfoStr }
+                    )
+                end
+
+                if entriesInfo.plugins[pluginInfoStr].expanded then
+                    currentTab = currentTab .. config.tab
+
+                    for _, pluginCommand in ipairs(mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands) do
+                        line = currentTab
+
+                        line = line_cat_highlight(lines:size(), line, " ", config.pluginIconHighlight, highlights)
+
+                        lineRange[lines:size() + 1] = #line
+
+                        line = line_cat_highlight(
+                            lines:size(),
+                            line,
+                            pluginCommand,
+                            config.pluginTextHighlight,
+                            highlights
+                        )
+
+                        lines:append(line)
+
+                        lineCallbackNew[lines:size()] = function(callback)
+                            return callback("command", nil, projectInfo, {
+                                command = mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal
+                                    .. ":"
+                                    .. pluginCommand,
+                                infoStr = pluginInfoStr,
+                            })
+                        end
+                    end
+
+                    currentTab = currentTab:gsub(config.tab, "", 1)
+                end
+            end
+        end
+    end
+end
+
+---@param file ProjectFile
+---@return "class"|"interface"|"@interface"|"enum"|nil
+local function get_java_file_type(file)
+    if file == nil then
+        return
+    end
+
+    if mavenImporterNew.fileProperties[file.path] ~= nil then
+        return mavenImporterNew.fileProperties[file.path].type
+    end
+end
+
+---@param file string
+---@return boolean
+local function is_java_file_test(file) end
+
+---@param file ProjectFile
+---@return boolean
+local function is_java_file_runnable(file)
+    if file == nil then
+        return false
+    end
+
+    if mavenImporterNew.fileProperties[file.path] ~= nil then
+        if
+            mavenImporterNew.fileProperties[file.path].main == true
+            or (
+                mavenImporterNew.fileProperties[file.path].importsJunit == true
+                and mavenImporterNew.fileProperties[file.path].test == true
+            )
+        then
+            return true
+        end
+    end
+
+    return false
+end
+
+---@param file string
+---@param entry EntryInfo
+local function append_java_file_to_map(file, entry)
+    table.insert(javaFilesMap[file].entries, entry)
+end
+
+---@param currentTab string
+---@param mavenInfoStr string
+---@param projectInfo ProjectInfo
+---@param lines Array
+---@param highlights Highlight[]
+---@param parents string[]
+---@param parentVisible boolean
+local function generate_project_files_lines(
+    currentTab,
+    mavenInfoStr,
+    projectInfo,
+    lines,
+    highlights,
+    parents,
+    parentVisible
+)
+    if config.showFiles == false or (next(projectInfo.files) == nil and next(projectInfo.testFiles) == nil) then
+        return
+    end
+
+    if entriesInfo.container.files[mavenInfoStr] == nil then
+        entriesInfo.container.files[mavenInfoStr] = { expanded = false }
+    end
+
+    if entriesInfo.container.folders[mavenInfoStr] == nil then
+        entriesInfo.container.folders[mavenInfoStr] = { files = {}, tests = {} }
+    end
+
+    local line = currentTab
+
+    if parentVisible then
+        local sign
+        if entriesInfo.container.files[mavenInfoStr].expanded then
+            sign = " "
+        else
+            sign = " "
+        end
+
+        line = line_cat_highlight(lines:size(), line, sign, config.signHighlight, highlights)
+
+        line = line_cat_highlight(lines:size(), line, " ", config.containerIconHighlight, highlights)
+
+        lineRange[lines:size() + 1] = #line
+
+        line = line_cat_highlight(lines:size(), line, "Files", config.containerTextHighlight, highlights)
+
+        lines:append(line)
+
+        lineCallbackNew[lines:size()] = function(callback)
+            return callback("container", entriesInfo.container.files[mavenInfoStr], projectInfo, {})
+        end
+    end
+
+    if entriesInfo.container.files[mavenInfoStr].expanded and parentVisible then
+        currentTab = currentTab .. config.tab
+
+        for folder, files in pairs(projectInfo.files) do
+            if files[1] ~= nil then
+                if entriesInfo.container.folders[mavenInfoStr].files[folder] == nil then
+                    entriesInfo.container.folders[mavenInfoStr].files[folder] = { expanded = false }
+                end
+
+                local sign
+                line = currentTab
+
+                if entriesInfo.container.folders[mavenInfoStr].files[folder].expanded then
+                    sign = " "
+                else
+                    sign = " "
+                end
+
+                line = line_cat_highlight(lines:size(), line, sign, config.packageIconHighlight, highlights)
+
+                lineRange[lines:size() + 1] = #line
+
+                line = line_cat_highlight(lines:size(), line, folder, config.packageTextHighlight, highlights)
+
+                lines:append(line)
+
+                lineCallbackNew[lines:size()] = function(callback)
+                    return callback(
+                        "container",
+                        entriesInfo.container.folders[mavenInfoStr].files[folder],
+                        projectInfo,
+                        {}
+                    )
+                end
+
+                if entriesInfo.container.folders[mavenInfoStr].files[folder].expanded and parentVisible then
+                    currentTab = currentTab .. config.tab
+
+                    for _, file in ipairs(files) do
+                        line = currentTab
+
+                        local fileType = get_java_file_type(file)
+
+                        if fileType == nil then
+                            line = line_cat_highlight(lines:size(), line, " ", config.fileIconHighlight, highlights)
+                        elseif fileType == "class" then
+                            line = line_cat_highlight(lines:size(), line, "󰯳 ", config.fileIconHighlight, highlights)
+                        elseif fileType == "interface" then
+                            line = line_cat_highlight(lines:size(), line, "󰰅 ", config.fileIconHighlight, highlights)
+                        elseif fileType == "@interface" then
+                            line = line_cat_highlight(lines:size(), line, "󰁥 ", config.fileIconHighlight, highlights)
+                        elseif fileType == "enum" then
+                            line = line_cat_highlight(lines:size(), line, "󰯹 ", config.fileIconHighlight, highlights)
+                        end
+
+                        if is_java_file_runnable(file) then
+                            line = line_cat_highlight(
+                                lines:size(),
+                                line,
+                                " ",
+                                config.testPackageIconHighlight,
+                                highlights
+                            )
+                        end
+
+                        lineRange[lines:size() + 1] = #line
+                        line =
+                            line_cat_highlight(lines:size(), line, file.filename, config.fileTextHighlight, highlights)
+
+                        lines:append(line)
+
+                        lineCallbackNew[lines:size()] = function(callback)
+                            return callback("file", nil, projectInfo, { path = file.path })
+                        end
+
+                        javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                        append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].files[folder])
+                        append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                        append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
+
+                        for _, parent in ipairs(parents) do
+                            append_java_file_to_map(file.path, entriesInfo.projects[parent])
+                        end
+                    end
+
+                    currentTab = currentTab:gsub(config.tab, "", 1)
+                end
+            end
+        end
+
+        for folder, files in pairs(projectInfo.testFiles) do
+            if files[1] ~= nil then
+                if entriesInfo.container.folders[mavenInfoStr].tests[folder] == nil then
+                    entriesInfo.container.folders[mavenInfoStr].tests[folder] = { expanded = false }
+                end
+
+                local sign
+                line = currentTab
+
+                if entriesInfo.container.folders[mavenInfoStr].tests[folder].expanded then
+                    sign = " "
+                else
+                    sign = " "
+                end
+
+                line = line_cat_highlight(lines:size(), line, sign, config.testPackageIconHighlight, highlights)
+
+                lineRange[lines:size() + 1] = #line
+
+                line = line_cat_highlight(lines:size(), line, folder, config.testPackageTextHighlight, highlights)
+                line = line_cat_highlight(lines:size(), line, " [test]", config.commentHighlight, highlights)
+
+                lines:append(line)
+
+                lineCallbackNew[lines:size()] = function(callback)
+                    return callback(
+                        "container",
+                        entriesInfo.container.folders[mavenInfoStr].tests[folder],
+                        projectInfo,
+                        {}
+                    )
+                end
+
+                if entriesInfo.container.folders[mavenInfoStr].tests[folder].expanded then
+                    currentTab = currentTab .. config.tab
+
+                    for _, file in ipairs(files) do
+                        line = currentTab
+
+                        local fileType = get_java_file_type(file)
+
+                        if fileType == nil then
+                            line = line_cat_highlight(lines:size(), line, " ", config.fileIconHighlight, highlights)
+                        elseif fileType == "class" then
+                            line = line_cat_highlight(lines:size(), line, "󰯳 ", config.fileIconHighlight, highlights)
+                        elseif fileType == "interface" then
+                            line = line_cat_highlight(lines:size(), line, "󰰅 ", config.fileIconHighlight, highlights)
+                        elseif fileType == "@interface" then
+                            line = line_cat_highlight(lines:size(), line, "󰁥 ", config.fileIconHighlight, highlights)
+                        elseif fileType == "enum" then
+                            line = line_cat_highlight(lines:size(), line, "󰯹 ", config.fileIconHighlight, highlights)
+                        end
+
+                        if is_java_file_runnable(file) then
+                            line = line_cat_highlight(
+                                lines:size(),
+                                line,
+                                " ",
+                                config.testPackageIconHighlight,
+                                highlights
+                            )
+                        end
+
+                        lineRange[lines:size() + 1] = #line
+                        line =
+                            line_cat_highlight(lines:size(), line, file.filename, config.fileTextHighlight, highlights)
+
+                        lines:append(line)
+
+                        lineCallbackNew[lines:size()] = function(callback)
+                            return callback("file", nil, projectInfo, { path = file.path })
+                        end
+
+                        javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                        append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].tests[folder])
+                        append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                        append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
+
+                        for _, parent in ipairs(parents) do
+                            append_java_file_to_map(file.path, entriesInfo.projects[parent])
+                        end
+                    end
+
+                    currentTab = currentTab:gsub(config.tab, "", 1)
+                end
+            end
+        end
+    else
+        for folder, files in pairs(projectInfo.files) do
+            if files[1] ~= nil then
+                if entriesInfo.container.folders[mavenInfoStr].files[folder] == nil then
+                    entriesInfo.container.folders[mavenInfoStr].files[folder] = { expanded = false }
+                end
+
+                for _, file in ipairs(files) do
+                    javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                    append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].files[folder])
+                    append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                    append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
+
+                    for _, parent in ipairs(parents) do
+                        append_java_file_to_map(file.path, entriesInfo.projects[parent])
+                    end
+                end
+            end
+        end
+
+        for folder, files in pairs(projectInfo.testFiles) do
+            if files[1] ~= nil then
+                if entriesInfo.container.folders[mavenInfoStr].tests[folder] == nil then
+                    entriesInfo.container.folders[mavenInfoStr].tests[folder] = { expanded = false }
+                end
+
+                for _, file in ipairs(files) do
+                    javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                    append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].tests[folder])
+                    append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                    append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
+
+                    for _, parent in ipairs(parents) do
+                        append_java_file_to_map(file.path, entriesInfo.projects[parent])
+                    end
+                end
+            end
+        end
+    end
+end
+
+---@param currentTab string
+---@param mavenInfoStr string
+---@param projectInfo ProjectInfo
+---@param lines Array
+---@param highlights Highlight[]
+---@param parents string[]
+---@param parentVisible boolean
+local function generate_project_lines(currentTab, mavenInfoStr, projectInfo, lines, highlights, parents, parentVisible)
+    if entriesInfo.projects[mavenInfoStr] == nil then
+        entriesInfo.projects[mavenInfoStr] = { expanded = false }
+    end
+
+    if parentVisible then
+        local line = currentTab
+
+        line = line_cat_highlight(
+            lines:size(),
+            line,
+            entriesInfo.projects[mavenInfoStr].expanded and " " or " ",
+            config.signHighlight,
+            highlights
+        )
+
+        line = line_cat_highlight(lines:size(), line, " ", config.projectIconHighlight, highlights)
+
+        lineRange[lines:size() + 1] = #line
+
+        line = line_cat_highlight(lines:size(), line, projectInfo.name, config.projectTextHighlight, highlights)
+
+        lines:append(line)
+
+        lineCallbackNew[lines:size()] = function(callback)
+            return callback("project", entriesInfo.projects[mavenInfoStr], projectInfo, {})
+        end
+    end
+
+    if entriesInfo.projects[mavenInfoStr].expanded and parentVisible then
+        generate_project_lifecycle_lines(currentTab .. config.tab, mavenInfoStr, projectInfo, lines, highlights)
+        generate_project_dependencies_lines(currentTab .. config.tab, mavenInfoStr, projectInfo, lines, highlights)
+        generate_project_plugins_lines(currentTab .. config.tab, mavenInfoStr, projectInfo, lines, highlights)
+        generate_project_files_lines(
+            currentTab .. config.tab,
+            mavenInfoStr,
+            projectInfo,
+            lines,
+            highlights,
+            parents,
+            true
+        )
+
+        -- table.insert(parents, mavenInfoStr)
+
+        for _, modulePomFile in ipairs(projectInfo.modules) do
+            local currentParents = utils.deepcopy(parents)
+            table.insert(currentParents, mavenInfoStr)
+            if mavenImporterNew.pomFileToMavenInfoMap[modulePomFile] ~= nil then
+                local moduleInfoStr =
+                    mavenImporterNew.info_to_str(mavenImporterNew.pomFileToMavenInfoMap[modulePomFile].info)
+
+                if mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr] ~= nil then
+                    generate_project_lines(
+                        currentTab .. config.tab,
+                        moduleInfoStr,
+                        mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr],
+                        lines,
+                        highlights,
+                        currentParents,
+                        true
+                    )
+                end
+            end
+        end
+    else
+        generate_project_files_lines(
+            currentTab .. config.tab,
+            mavenInfoStr,
+            projectInfo,
+            lines,
+            highlights,
+            parents,
+            false
+        )
+
+        -- table.insert(parents, mavenInfoStr)
+
+        for _, modulePomFile in ipairs(projectInfo.modules) do
+            local currentParents = utils.deepcopy(parents)
+            table.insert(currentParents, mavenInfoStr)
+
+            if mavenImporterNew.pomFileToMavenInfoMap[modulePomFile] ~= nil then
+                local moduleInfoStr =
+                    mavenImporterNew.info_to_str(mavenImporterNew.pomFileToMavenInfoMap[modulePomFile].info)
+
+                if mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr] ~= nil then
+                    generate_project_lines(
+                        currentTab .. config.tab,
+                        moduleInfoStr,
+                        mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr],
+                        lines,
+                        highlights,
+                        currentParents,
+                        false
+                    )
+                end
+            end
+        end
+    end
+end
+
+---@return Array
+---@return Highlight[]
+local function generate_main_buffer_lines_new()
+    local lines = utils.Array()
+
+    ---@type Highlight[]
+    local highlights = {}
+
+    local filterEnabled = filter:len() > 0
+
+    create_header(lines, highlights)
+
+    for mavenInfoStr, projectInfo in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
+        if mavenImporterNew.pomFileIsModuleSet[projectInfo.pomFile] == nil then
+            generate_project_lines("", mavenInfoStr, projectInfo, lines, highlights, {}, true)
+        end
+    end
+
+    for pomFile, error in pairs(mavenImporterNew.pomFileToErrorMap) do
+        if error ~= nil then
+            local line = ""
+
+            line = line_cat_highlight(lines:size(), line, " ", config.projectErrorIconHighlight, highlights)
+            line = line_cat_highlight(lines:size(), line, "error", config.projectErrorTextHighlight, highlights)
+            lineRange[lines:size() + 1] = #line
+            line = line_cat_highlight(lines:size(), line, " ", config.projectTextHighlight, highlights)
+            line = line_cat_highlight(
+                lines:size(),
+                line,
+                "[" .. pomFile:gsub(utils.Path(config.cwd).str .. "/", "") .. "]",
+                config.projectTextHighlight,
+                highlights
+            )
+
+            lines:append(line)
+
+            lineCallbackNew[lines:size()] = function(callback)
+                return callback("error", nil, nil, { file = pomFile, error = error })
+            end
+        end
+    end
+
+    if lines:size() < 2 then
+        create_footer(lines, highlights, filterEnabled)
+    end
+
+    return lines, highlights
+end
+
 local function create_main_buffer()
     lineCallback = {}
     lineRange = {}
@@ -703,7 +1372,8 @@ local function create_main_buffer()
 
     local buf = vim.api.nvim_create_buf(false, true)
 
-    local lines, highlights = generate_main_buffer_lines()
+    -- local lines, highlights = generate_main_buffer_lines()
+    local lines, highlights = generate_main_buffer_lines_new()
 
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines:values())
 
@@ -714,7 +1384,7 @@ local function create_main_buffer()
     return buf
 end
 
-local function update_main_buffer()
+local function update_main_buffer(updateCursor)
     mavenBuf = create_main_buffer()
     local line = vim.fn.line(".")
     local col = vim.fn.col(".")
@@ -723,7 +1393,7 @@ local function update_main_buffer()
         vim.api.nvim_win_set_buf(mavenWin, mavenBuf)
     end
 
-    if mavenWin ~= nil then
+    if mavenWin ~= nil and updateCursor == nil then
         if vim.api.nvim_get_current_win() == mavenWin then
             pcall(function()
                 vim.api.nvim_win_set_cursor(mavenWin, { line, col - 1 })
@@ -747,6 +1417,9 @@ local function main_window_close_handler()
 
     autocmds = {}
 end
+
+local restoreEntries = {}
+local restoreEntiresCallback = nil
 
 local function initialize_autocmds()
     table.insert(
@@ -811,13 +1484,48 @@ local function initialize_autocmds()
         })
     )
 
-    if config.autoRefreshProjectFiles then
-        projectFilesUpdateTimer = vim.uv.new_timer()
+    table.insert(
+        autocmds,
+        vim.api.nvim_create_autocmd("BufEnter", {
+            callback = function()
+                if mavenWin ~= nil then
+                    local buf = vim.api.nvim_get_current_buf()
+                    local bufName = utils.Path(vim.api.nvim_buf_get_name(buf)).str
 
-        if projectFilesUpdateTimer ~= nil then
-            projectFilesUpdateTimer:start(0, 10000, vim.schedule_wrap(MavenToolsMainWindow.refresh_files))
-        end
-    end
+                    if buf ~= mavenBuf and restoreEntiresCallback ~= nil then
+                        restoreEntiresCallback()
+                    end
+
+                    restoreEntries = {}
+
+                    restoreEntiresCallback = function()
+                        for _, v in ipairs(restoreEntries) do
+                            v.entry.expanded = v.value
+                        end
+                    end
+
+                    if javaFilesMap[bufName] ~= nil then
+                        for _, entry in ipairs(javaFilesMap[bufName].entries) do
+                            table.insert(restoreEntries, { entry = entry, value = entry.expanded })
+                            entry.expanded = true
+                        end
+
+                        update_main_buffer(1)
+
+                        vim.api.nvim_win_set_cursor(mavenWin, { javaFilesMap[bufName].line, 1 })
+                    end
+                end
+            end,
+        })
+    )
+
+    -- if config.autoRefreshProjectFiles then
+    --     projectFilesUpdateTimer = vim.uv.new_timer()
+    --
+    --     if projectFilesUpdateTimer ~= nil then
+    --         projectFilesUpdateTimer:start(0, 10000, vim.schedule_wrap(MavenToolsMainWindow.refresh_files))
+    --     end
+    -- end
 end
 
 function MavenToolsMainWindow.show_main_window()
@@ -831,10 +1539,16 @@ end
 
 local function init()
     local cwd = config.cwd
+    vim.api.nvim_set_hl(0, "MavenToolsContainerIcon", { fg = "#54c6f7" })
+    vim.api.nvim_set_hl(0, "MavenToolsProjectIcon", { fg = "#548AF7" })
+    vim.api.nvim_set_hl(0, "MavenToolsJavaPackageIcon", { fg = "#548AF7" })
+    vim.api.nvim_set_hl(0, "MavenToolsJavaTestPackageIcon", { fg = "#57965C" })
+    vim.api.nvim_set_hl(0, "MavenToolsJavaFileIcon", { fg = "#de7118" })
 
     if cwd ~= nil then
         vim.schedule(function()
-            mavenImporter.process_pom_files(cwd, update_main_buffer)
+            -- mavenImporter.process_pom_files(cwd, update_main_buffer)
+            mavenImporterNew.update(cwd, update_main_buffer)
         end)
     end
 
@@ -854,24 +1568,45 @@ function MavenToolsMainWindow.toggle_item()
     local line = vim.fn.line(".")
     local col = vim.fn.col(".")
 
-    local entry
+    if type(lineCallbackNew[line]) == "function" then
+        lineCallbackNew[line](function(entryType, entryInfo, projectInfo, arg)
+            if entryType == "command" and projectInfo ~= nil then
+                runner.run(arg, projectInfo.pomFile, console.console_reset, console.console_append)
+            elseif entryType == "file" then
+                utils.open_file(arg.path)
+            elseif entryInfo ~= nil and entryInfo.expanded ~= nil then
+                entryInfo.expanded = not entryInfo.expanded
 
-    for _, v in ipairs(lineRoots) do
-        if line >= v.first and line <= v.last then
-            entry = v.item
-            break
-        end
+                update_main_buffer(1)
+            end
+        end)
     end
 
-    if type(lineCallback[line]) == "function" then
-        if lineCallback[line](entry) then
-            update_main_buffer()
-        end
-
-        if mavenWin ~= nil then
-            vim.api.nvim_win_set_cursor(mavenWin, { line, col - 1 })
-        end
+    if mavenWin ~= nil then
+        vim.api.nvim_win_set_cursor(mavenWin, { line, col - 1 })
     end
+
+    -- local line = vim.fn.line(".")
+    -- local col = vim.fn.col(".")
+    --
+    -- local entry
+    --
+    -- for _, v in ipairs(lineRoots) do
+    --     if line >= v.first and line <= v.last then
+    --         entry = v.item
+    --         break
+    --     end
+    -- end
+    --
+    -- if type(lineCallback[line]) == "function" then
+    --     if lineCallback[line](entry) then
+    --         update_main_buffer()
+    --     end
+    --
+    --     if mavenWin ~= nil then
+    --         vim.api.nvim_win_set_cursor(mavenWin, { line, col - 1 })
+    --     end
+    -- end
 end
 
 function MavenToolsMainWindow.close_win()
@@ -1401,13 +2136,16 @@ function MavenToolsMainWindow.show_all()
 end
 
 function MavenToolsMainWindow.refresh_entry()
-    local entry = get_current_entry()
-
-    if entry == nil then
-        return
+    local line = vim.fn.line(".")
+    if type(lineCallbackNew[line]) == "function" then
+        lineCallbackNew[line](function(_, _, projectInfo, args)
+            if projectInfo ~= nil then
+                mavenImporterNew.refresh_prject(projectInfo)
+            elseif args ~= nil and args.file ~= nil then
+                mavenImporterNew.refresh_prject(args.file)
+            end
+        end)
     end
-
-    mavenImporter.refresh_entry(entry)
 end
 
 function MavenToolsMainWindow.show_effective_pom()

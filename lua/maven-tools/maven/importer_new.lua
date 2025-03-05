@@ -13,15 +13,19 @@
 ---@field path string
 ---@field ready boolean
 
+---@class ProjectFile
+---@field path string
+---@field filename string
+
 ---@class ProjectInfo
 ---@field name string
 ---@field info MavenInfoNew
----@field dependencies MavenInfoNew[]
+---@field dependencies MavenDependency[]
 ---@field plugins MavenInfoNew[]
 ---@field modules string[]
 ---@field pomFile string?
----@field files table<string, string[]>
----@field testFiles table<string, string[]>
+---@field files table<string, ProjectFile[]>
+---@field testFiles table<string, ProjectFile[]>
 ---@field sourceDirectory string?
 ---@field scriptSourceDirectory string?
 ---@field testSourceDirectory string?
@@ -41,9 +45,9 @@
 ---@field checksum string
 
 ---@class MavenImporterNew
-MavenToolsImporterNew = {}
+MavenImporterNew = {}
 
-MavenToolsImporterNew.status = "Ready"
+MavenImporterNew.status = "Ready"
 
 local prefix = "maven-tools."
 
@@ -65,13 +69,13 @@ local MavenInfo = {}
 function MavenInfo:new(groupId, artifactId, version)
     ---@type MavenInfoNew
     local res = { groupId = groupId or "", artifactId = artifactId or "", version = version or "" }
-
-    setmetatable(res, {
-        ---@param obj MavenInfoNew
-        __tostring = function(obj)
-            return obj.groupId .. ":" .. obj.artifactId .. ":" .. obj.version
-        end,
-    })
+    --
+    -- setmetatable(res, {
+    --     ---@param obj MavenInfoNew
+    --     __tostring = function(obj)
+    --         return obj.groupId .. ":" .. obj.artifactId .. ":" .. obj.version
+    --     end,
+    -- })
 
     return res
 end
@@ -90,33 +94,69 @@ function MavenDependency:new(groupId, artifactId, version, scope)
     return res
 end
 
+---@param info MavenInfoNew
+---@return string
+function MavenImporterNew.info_to_str(info)
+    return info.groupId .. ":" .. info.artifactId .. ":" .. info.version
+end
+
 local xml2lua = require("maven-tools.deps.xml2lua.xml2lua")
 local xmlTreeHandler = require("maven-tools.deps.xml2lua.xmlhandler.tree")
 
----@type Path?
+---@type Path
 local cwd
 
+---@type function
 local update_callback = nil
 
 ---@type Task_Mgr
 local taskMgr = utils.Task_Mgr()
 
+local processingFiles = {}
+
+---@type Task_Mgr
+local filesTaskMgr = utils.Task_Mgr()
+
+MavenImporterNew.pomFiles = nil
 ---@type table<string, ProjectInfo>
-MavenToolsImporterNew.mavenInfoToProjectInfoMap = {}
+MavenImporterNew.mavenInfoToProjectInfoMap = {}
 
 ---@type table<string, FileInfoChecksumNew>
-MavenToolsImporterNew.pomFileToMavenInfoMap = {}
+MavenImporterNew.pomFileToMavenInfoMap = {}
+
+---@type table<string, string>
+MavenImporterNew.pomFileToErrorMap = {}
 
 ---@type table<string, MavenPlugin>
-MavenToolsImporterNew.pluginInfoToPluginMap = {}
+MavenImporterNew.pluginInfoToPluginMap = {}
 
----@type table<string, boolean>
-MavenToolsImporterNew.pomFileIsModuleSet = {}
+---@type table<string, table<string, boolean>>
+MavenImporterNew.pomFileIsModuleSet = {}
 
 ---@type table<string, PluginInfo>
 local pendingPlugins = {}
 
-local function set_project_entry_to_error_state(...) end
+---@type table<string, boolean>
+local pendingFiles = {}
+
+---@return boolean
+function MavenImporterNew.idle()
+    return taskMgr:idle()
+end
+
+--- @return number
+function MavenImporterNew.progress()
+    return taskMgr:progress()
+end
+
+---@param pom_file string
+---@param refreshProjectInfo any
+---@param error string
+local function set_project_entry_to_error_state(pom_file, refreshProjectInfo, error)
+    if MavenImporterNew.pomFileToErrorMap[pom_file] == nil then
+        MavenImporterNew.pomFileToErrorMap[pom_file] = error
+    end
+end
 
 ---@param pomFile Path
 ---@param moduleRelativePathStr string
@@ -148,13 +188,13 @@ local function process_xml_project_sub_tree_plugins(xmlProjectSubTree)
         if xmlProjectSubTree.build.plugins.plugin[1] ~= nil then
             for _, plugin in pairs(xmlProjectSubTree.build.plugins.plugin) do
                 local pluginInfo = xml_plugin_sub_tree_to_maven_info(plugin)
-                local pluginInfoStr = tostring(pluginInfo)
+                local pluginInfoStr = MavenImporterNew.info_to_str(pluginInfo)
 
                 table.insert(plugins, pluginInfo)
             end
         else
             local pluginInfo = xml_plugin_sub_tree_to_maven_info(xmlProjectSubTree.build.plugins.plugin)
-            local pluginInfoStr = tostring(pluginInfo)
+            local pluginInfoStr = MavenImporterNew.info_to_str(pluginInfo)
 
             table.insert(plugins, pluginInfo)
         end
@@ -195,6 +235,99 @@ local function process_xml_project_sub_tree_dependencies(xmlProjectSubTree)
     return dependencies
 end
 
+---@param projectInfo ProjectInfo
+local function update_project_files(projectInfo, test)
+    local projectFiles = {}
+    local filesPrefix = test and projectInfo.testSourceDirectory or projectInfo.sourceDirectory
+
+    if filesPrefix == nil then
+        return
+    end
+
+    local javaFiles = utils.list_java_files(filesPrefix)
+
+    for _, javaFile in ipairs(javaFiles) do
+        local relativePath, count = javaFile:gsub(filesPrefix .. "/", "")
+
+        if count == 1 then
+            local dir, filename = relativePath:match("(.*/)([^/]*)$")
+
+            if dir and filename then
+                ---@cast dir string
+                ---@cast filename string
+
+                local package = dir:gsub("/", ".")
+
+                if package:match("%.$") then
+                    package = package:sub(1, -2) -- remove trailing '.'
+                end
+
+                if projectFiles[package] == nil then
+                    projectFiles[package] = {}
+                end
+
+                ---@type ProjectFile
+                local projectFile = { path = javaFile, filename = filename }
+
+                table.insert(projectFiles[package], projectFile)
+
+                -- if processingFiles[javaFile] == nil then
+                -- processingFiles[javaFile] = true
+                --
+                -- filesTaskMgr:readFile(javaFile, function(lines)
+                --     local className = filename:gsub("%.java$", "")
+                --     local match = lines:match("(class)%s+" .. className)
+                --
+                --     if match == nil then
+                --         match = lines:match("(@interface)%s+" .. className)
+                --     end
+                --
+                --     if match == nil then
+                --         match = lines:match("(interface)%s+" .. className)
+                --     end
+                --
+                --     if match == nil then
+                --         match = lines:match("(enum)%s+" .. className)
+                --     end
+                --
+                --     if match ~= nil then
+                --         projectFile.type = match
+                --     end
+                --
+                --     match = lines:match("public%s+static%s+void%s+main%s*%(%s*String%s*%[%s*%]")
+                --
+                --     if match == nil then
+                --         match = lines:match("public%s+static%s+void%s+main%s*%(%s*String%s*%.%.%.")
+                --     end
+                --
+                --     if match == nil then
+                --         match = lines:match("import%s+org%.junit%.")
+                --
+                --         if match ~= nil then
+                --             match = lines:match("@Test")
+                --         end
+                --     end
+                --
+                --     if match ~= nil then
+                --         projectFile.runnable = true
+                --     end
+                --
+                --     processingFiles[javaFile] = nil
+                -- end)
+                -- end
+            end
+        end
+    end
+
+    if test then
+        projectInfo.testFiles = projectFiles
+    else
+        projectInfo.files = projectFiles
+    end
+
+    update_callback()
+end
+
 ---@param xmlProjectSubTree table
 ---@param pomFile Path?
 local function process_effective_pom_project_sub_tree(xmlProjectSubTree, pomFile, refreshProjectInfo)
@@ -207,69 +340,85 @@ local function process_effective_pom_project_sub_tree(xmlProjectSubTree, pomFile
     end
 
     local mavenInfo = MavenInfo:new(xmlProjectSubTree.groupId, xmlProjectSubTree.artifactId, xmlProjectSubTree.version)
-    local mavenInfoStr = tostring(mavenInfo)
+    local mavenInfoStr = MavenImporterNew.info_to_str(mavenInfo)
 
-    if MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr] ~= nil then
+    if MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr] ~= nil then
         return --already processed
     end
 
-    MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr] = {
-        name = xmlProjectSubTree.name,
+    local name
+    if xmlProjectSubTree.name == nil or xmlProjectSubTree.name == "" then
+        name = xmlProjectSubTree.groupId .. "." .. xmlProjectSubTree.artifactId
+    else
+        name = xmlProjectSubTree.name
+    end
+
+    MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr] = {
+        name = name,
         info = mavenInfo,
         dependencies = process_xml_project_sub_tree_dependencies(xmlProjectSubTree),
         plugins = process_xml_project_sub_tree_plugins(xmlProjectSubTree),
         modules = {},
         pomFile = pomFile and pomFile.str or nil,
+        files = {},
+        testFiles = {},
     }
 
+    if pomFile ~= nil and MavenImporterNew.pomFileToErrorMap[pomFile.str] ~= nil then
+        MavenImporterNew.pomFileToErrorMap[pomFile.str] = nil
+    end
+
     if pomFile ~= nil then
-        MavenToolsImporterNew.pomFileToMavenInfoMap[pomFile.str] =
+        MavenImporterNew.pomFileToMavenInfoMap[pomFile.str] =
             { info = mavenInfo, checksum = tostring(utils.file_checksum(pomFile.str)) }
     end
 
     if xmlProjectSubTree.modules ~= nil and xmlProjectSubTree.modules.module ~= nil then
         if xmlProjectSubTree.modules.module[1] ~= nil then
             for _, module in pairs(xmlProjectSubTree.modules.module) do
-                table.insert(MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].modules, module)
+                table.insert(MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].modules, module)
             end
         else
             table.insert(
-                MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].modules,
-                { path = xmlProjectSubTree.modules.module, ready = false }
+                MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].modules,
+                xmlProjectSubTree.modules.module
             )
         end
     end
 
     if xmlProjectSubTree.build.sourceDirectory ~= nil then
-        MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].sourceDirectory =
+        MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].sourceDirectory =
             utils.Path(xmlProjectSubTree.build.sourceDirectory).str
     end
 
     if xmlProjectSubTree.build.scriptSourceDirectory ~= nil then
-        MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].scriptSourceDirectory =
+        MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].scriptSourceDirectory =
             utils.Path(xmlProjectSubTree.build.scriptSourceDirectory).str
     end
 
     if xmlProjectSubTree.build.testSourceDirectory ~= nil then
-        MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].testSourceDirectory =
+        MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].testSourceDirectory =
             utils.Path(xmlProjectSubTree.build.testSourceDirectory).str
     end
 
     if xmlProjectSubTree.build.outputDirectory ~= nil then
-        MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].outputDirectory =
+        MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].outputDirectory =
             utils.Path(xmlProjectSubTree.build.outputDirectory).str
     end
 
     if xmlProjectSubTree.build.testOutputDirectory ~= nil then
-        MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].testOutputDirectory =
+        MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].testOutputDirectory =
             utils.Path(xmlProjectSubTree.build.testOutputDirectory).str
     end
+
+    update_project_files(MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr], false)
+    update_project_files(MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr], true)
 end
 
----@param pomFile Path?
+---@param pomFile Path
+---@param refreshProjectInfo ProjectInfo?
 local function start_pom_file_processor_task(pomFile, refreshProjectInfo)
-    MavenToolsImporterNew.status = "Processing POM files"
-    print(MavenToolsImporterNew.status)
+    MavenImporterNew.status = "Processing POM files"
 
     assert(pomFile ~= nil, "")
 
@@ -319,9 +468,11 @@ local function start_pom_file_processor_task(pomFile, refreshProjectInfo)
                 -- callback(nil)
             end
         else
-            set_project_entry_to_error_state(pomFile, refreshProjectInfo, xmlStr)
+            set_project_entry_to_error_state(pomFile.str, refreshProjectInfo, xmlStr)
             -- callback(nil)
         end
+
+        update_callback()
     end)
 end
 
@@ -353,18 +504,17 @@ end
 local function start_resolve_maven_info_pom_file_task(pomFile, refreshProjectInfo)
     assert(pomFile ~= nil, "Invalid pom file")
 
-    if MavenToolsImporterNew.pomFileToMavenInfoMap[pomFile.str] ~= nil then
+    if MavenImporterNew.pomFileToMavenInfoMap[pomFile.str] ~= nil then
         return -- already processed
     end
 
     taskMgr:readFile(pomFile.str, function(pomFileContent)
-        print(pomFileContent)
         local pomXml = xmlTreeHandler:new()
         local pomParser = xml2lua.parser(pomXml)
         local success = pcall(pomParser.parse, pomParser, pomFileContent)
 
         if not success then
-            set_project_entry_to_error_state(pomFile, refreshProjectInfo, "Failed to parse xml file")
+            set_project_entry_to_error_state(pomFile.str, refreshProjectInfo, "Failed to parse xml file")
             return
         end
 
@@ -376,16 +526,22 @@ local function start_resolve_maven_info_pom_file_task(pomFile, refreshProjectInf
 
         if groupId ~= nil and artifactId ~= nil then
             local mavenInfo = MavenInfo:new(groupId, artifactId, version)
-            local mavenInfoStr = tostring(mavenInfo)
+            local mavenInfoStr = MavenImporterNew.info_to_str(mavenInfo)
 
-            if MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr] == nil then
-                return --TODO: error invalid maven info
+            if MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr] == nil then
+                set_project_entry_to_error_state(pomFile.str, refreshProjectInfo, "Invalid maven info")
+                return
             end
 
-            MavenToolsImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].pomFile = pomFile.str
-            MavenToolsImporterNew.pomFileToMavenInfoMap[pomFile.str] =
+            MavenImporterNew.mavenInfoToProjectInfoMap[mavenInfoStr].pomFile = pomFile.str
+            MavenImporterNew.pomFileToMavenInfoMap[pomFile.str] =
                 { info = mavenInfo, checksum = tostring(utils.file_checksum(pomFile.str)) }
+            if MavenImporterNew.pomFileToErrorMap[pomFile.str] ~= nil then
+                MavenImporterNew.pomFileToErrorMap[pomFile.str] = nil
+            end
         end
+
+        update_callback()
     end)
 end
 
@@ -435,113 +591,218 @@ local function start_resolve_plugin_goals_task(pomFile, mavenInfo)
             end
 
             if plugin ~= nil then
-                MavenToolsImporterNew.pluginInfoToPluginMap[tostring(mavenInfo)] = plugin
+                MavenImporterNew.pluginInfoToPluginMap[MavenImporterNew.info_to_str(mavenInfo)] = plugin
             end
+
+            update_callback()
         end
     )
 end
 
 local function update_modules_and_pending_plugins()
-    for _, projectInfo in pairs(MavenToolsImporterNew.mavenInfoToProjectInfoMap) do
-        for i, module in ipairs(projectInfo.modules) do
-            if projectInfo.pomFile ~= nil then
-                local modulePath = get_module_abs_path(utils.Path(projectInfo.pomFile), module)
-                projectInfo.modules[i] = modulePath
-                MavenToolsImporterNew.pomFileIsModuleSet[modulePath] = true
+    for mavenInfoStr, projectInfo in pairs(MavenImporterNew.mavenInfoToProjectInfoMap) do
+        for _, pluginInfo in ipairs(projectInfo.plugins) do
+            local pluginInfoStr = MavenImporterNew.info_to_str(pluginInfo)
+
+            if
+                MavenImporterNew.pluginInfoToPluginMap[pluginInfoStr] == nil
+                and pendingPlugins[pluginInfoStr] == nil
+                and projectInfo.pomFile ~= nil
+            then
+                pendingPlugins[pluginInfoStr] = { mavenInfo = pluginInfo, pomFile = projectInfo.pomFile }
             end
         end
 
-        for _, pluginInfo in ipairs(projectInfo.plugins) do
-            local pluginInfoStr = tostring(pluginInfo)
+        if projectInfo.pomFile ~= nil then
+            for i, module in ipairs(projectInfo.modules) do
+                if
+                    MavenImporterNew.pomFileToMavenInfoMap[module] ~= nil
+                    or MavenImporterNew.pomFileToErrorMap[module] ~= nil
+                then
+                    MavenImporterNew.pomFileIsModuleSet[module][mavenInfoStr] = true
+                    if
+                        not (
+                            MavenImporterNew.pomFileToMavenInfoMap[module] ~= nil
+                            or MavenImporterNew.pomFileToErrorMap[module] ~= nil
+                        )
+                    then
+                        pendingFiles[module] = true
+                    end
+                else
+                    local modulePath = get_module_abs_path(utils.Path(projectInfo.pomFile), module)
+                    projectInfo.modules[i] = modulePath
 
-            if pendingPlugins[pluginInfoStr] == nil and projectInfo.pomFile ~= nil then
-                pendingPlugins[pluginInfoStr] = { mavenInfo = pluginInfo, pomFile = projectInfo.pomFile }
+                    if MavenImporterNew.pomFileIsModuleSet[modulePath] == nil then
+                        MavenImporterNew.pomFileIsModuleSet[modulePath] = { [mavenInfoStr] = true }
+                    else
+                        MavenImporterNew.pomFileIsModuleSet[modulePath][mavenInfoStr] = true
+                    end
+
+                    if
+                        not (
+                            MavenImporterNew.pomFileToMavenInfoMap[modulePath] ~= nil
+                            or MavenImporterNew.pomFileToErrorMap[modulePath] ~= nil
+                        )
+                    then
+                        pendingFiles[modulePath] = true
+                    end
+                end
             end
+        end
+
+        update_callback()
+    end
+end
+
+local function update_projects_all_files()
+    for _, projectInfo in pairs(MavenImporterNew.mavenInfoToProjectInfoMap) do
+        update_project_files(projectInfo, false)
+        update_project_files(projectInfo, true)
+    end
+end
+
+local function write_project_cache_file()
+    local path = cwd:join(config.localConfigDir)
+    local success, _ = utils.create_directories(path.str)
+
+    if success then
+        local resFile = io.open(path:join("cache.json").str, "w")
+
+        if resFile then
+            vim.schedule(function()
+                local json
+
+                success, json = pcall(vim.fn.json_encode, {
+                    version = config.version,
+                    importerChecksum = mavenConfig.importer_checksum(),
+                    mavenInfoToProjectInfoMap = MavenImporterNew.mavenInfoToProjectInfoMap,
+                    pomFileToMavenInfoMap = MavenImporterNew.pomFileToMavenInfoMap,
+                    pluginInfoToPluginMap = MavenImporterNew.pluginInfoToPluginMap,
+                    pomFileIsModuleSet = MavenImporterNew.pomFileIsModuleSet,
+                    pomFileToErrorMap = MavenImporterNew.pomFileToErrorMap,
+                })
+
+                if success then
+                    resFile:write(json)
+                end
+
+                resFile:close()
+            end)
         end
     end
 end
 
+---@class JavaFileProperties
+---@field type "class"|"interface"|"@interface"|"enum"|nil
+---@field main boolean|nil
+---@field test boolean|nil
+---@field importsJunit boolean|nil
+
+---@type table<string, JavaFileProperties>
+MavenImporterNew.fileProperties = {}
+
+local function start_update_java_files_properties_task()
+    local cmd = "powershell.exe"
+    local args = {}
+
+    table.insert(args, "-NoProfile")
+    table.insert(args, "-Command")
+    table.insert(args, "rg")
+    table.insert(args, "--multiline")
+    table.insert(args, "-e")
+    table.insert(args, '"class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+"')
+    table.insert(args, "-e")
+    table.insert(args, '"static\\s+[^\\s]*\\s*void\\s+main\\s*\\("')
+    table.insert(args, "-e")
+    table.insert(args, '"@Test"')
+    table.insert(args, "-e")
+    table.insert(args, "import\\s+org\\.junit\\.")
+    table.insert(args, "-g")
+    table.insert(args, '"*.java"')
+    table.insert(args, '"' .. cwd.str .. '"')
+
+    filesTaskMgr:run({ cmd = cmd, args = args }, function(lines)
+        for line in lines:gmatch("[^\n]*") do
+            for pathStr, match in line:gmatch("(.+)java:(.+)") do
+                -- if match:match("[%*/]") == nil then
+                local path = utils.Path(pathStr .. "java")
+
+                if MavenImporterNew.fileProperties[path.str] == nil then
+                    MavenImporterNew.fileProperties[path.str] = {}
+                end
+
+                local type = match:match("%s*([^%s]+)%s+" .. path:filename():gsub("%.java$", ""))
+
+                if type == "class" or type == "interface" or type == "@interface" or type == "enum" then
+                    MavenImporterNew.fileProperties[path.str].type = type
+                    print(vim.inspect(MavenImporterNew.fileProperties[path.str]))
+                end
+
+                local main = match:match("void%s+main%s*%(")
+
+                if main ~= nil then
+                    MavenImporterNew.fileProperties[path.str].main = true
+                end
+
+                local test = match:match("@Test")
+
+                if test ~= nil then
+                    MavenImporterNew.fileProperties[path.str].test = true
+                end
+
+                local importsJunit = match:match("import%s+org%.junit%.")
+
+                if importsJunit ~= nil then
+                    MavenImporterNew.fileProperties[path.str].importsJunit = true
+                end
+            end
+        end
+
+        update_callback()
+    end)
+end
+
 local function idle_callback_init()
-    MavenToolsImporterNew.status = "Resolving projects"
-    print(MavenToolsImporterNew.status)
+    taskMgr:reset()
+    MavenImporterNew.status = "Resolving projects"
+
+    -- print(MavenToolsImporterNew.status)
 
     taskMgr:set_on_idle_callback(function()
-        MavenToolsImporterNew.status = "Resolving modules"
-        print(MavenToolsImporterNew.status)
+        taskMgr:reset()
+
+        MavenImporterNew.status = "Resolving modules"
+        -- print(MavenToolsImporterNew.status)
 
         update_modules_and_pending_plugins()
 
-        MavenToolsImporterNew.status = "Resolving plugins"
-        print(MavenToolsImporterNew.status)
+        MavenImporterNew.status = "Resolving plugins"
+        -- print(MavenToolsImporterNew.status)
 
         taskMgr:set_on_idle_callback(function()
-            for pomFile, mavenInfo in pairs(MavenToolsImporterNew.pomFileToMavenInfoMap) do
-                local projectFiles = {}
-                local projectTestFiles = {}
-                local javaFiles = utils.list_java_files(pomFile)
-                local filesPrefix =
-                    MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].sourceDirectory
-                local testFilesPrefix =
-                    MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].testSourceDirectory
+            taskMgr:reset()
+            taskMgr:set_on_idle_callback(idle_callback_init)
 
-                for _, javaFile in ipairs(javaFiles) do
-                    local relativePath, count = javaFile:gsub(filesPrefix .. "/", "")
-
-                    if count == 1 then
-                        local dir, filename = relativePath:match("(.*/)([^/]*)$")
-
-                        if dir and filename then
-                            ---@cast dir string
-                            ---@cast filename string
-
-                            local package = dir:gsub("/", ".")
-
-                            if package:match("%.$") then
-                                package = package:sub(1, -2) -- remove trailing '.'
-                            end
-
-                            if projectFiles[package] == nil then
-                                projectFiles[package] = {}
-                            end
-
-                            table.insert(projectFiles[package], filename)
-                        end
-                    else
-                        relativePath, count = javaFile:gsub(testFilesPrefix .. "/", "")
-
-                        if count == 1 then
-                            local dir, filename = relativePath:match("(.*/)([^/]*)$")
-
-                            if dir and filename then
-                                ---@cast dir string
-                                ---@cast filename string
-
-                                local package = dir:gsub("/", ".")
-
-                                if package:match("%.$") then
-                                    package = package:sub(1, -2) -- remove trailing '.'
-                                end
-
-                                if projectTestFiles[package] == nil then
-                                    projectTestFiles[package] = {}
-                                end
-
-                                table.insert(projectTestFiles[package], filename)
-                            end
-                        end
-                    end
+            for pomFile, v in pairs(pendingFiles) do
+                if v then
+                    start_pom_file_processor_task(utils.Path(pomFile))
                 end
-
-                MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].files = projectFiles
-                MavenToolsImporterNew.mavenInfoToProjectInfoMap[tostring(mavenInfo.info)].testFiles = projectTestFiles
             end
 
-            vim.schedule(update_callback)
+            if taskMgr:idle() then
+                for pomFile, _ in pairs(pendingFiles) do
+                    pendingFiles[pomFile] = nil
+                end
 
-            print("done!")
+                MavenImporterNew.status = ""
+                update_callback()
+
+                write_project_cache_file()
+            end
         end)
 
         local pluginTasks = 0
+
         for pluginInfoStr, pluginInfo in pairs(pendingPlugins) do
             if pluginInfo ~= nil then
                 pluginTasks = pluginTasks + 1
@@ -549,41 +810,180 @@ local function idle_callback_init()
                 pendingPlugins[pluginInfoStr] = nil
             end
         end
+        -- update_projects_all_files()
 
         taskMgr:trigger_idle_callback_if_idle()
     end)
 
-    for _, pomFile in ipairs(MavenToolsImporterNew.pomFiles) do
+    for _, pomFile in ipairs(MavenImporterNew.pomFiles) do
         start_resolve_maven_info_pom_file_task(utils.Path(pomFile))
+    end
+
+    for pomFile, v in pairs(pendingFiles) do
+        if v then
+            start_resolve_maven_info_pom_file_task(utils.Path(pomFile))
+            pendingFiles[pomFile] = nil
+        end
     end
 
     taskMgr:trigger_idle_callback_if_idle()
 end
 
-function MavenToolsImporterNew.update(dir, callback)
-    MavenToolsImporterNew.status = "Looking of pom.xml files"
-    print(MavenToolsImporterNew.status)
+---@param pomFile string
+local function remove_project(pomFile)
+    local projectInfo = MavenImporterNew.pomFileToMavenInfoMap[pomFile]
 
-    update_callback = callback
-    cwd = utils.Path(dir)
-    assert(cwd ~= nil, "")
+    if projectInfo == nil then
+        return
+    end
 
-    MavenToolsImporterNew.pomFiles = utils.find_pom_files(cwd.str)
+    local projectInfoStr = MavenImporterNew.info_to_str(projectInfo.info)
+    local project = MavenImporterNew.mavenInfoToProjectInfoMap[projectInfoStr]
 
-    taskMgr:set_on_idle_callback(idle_callback_init)
+    if project == nil then
+        return
+    end
 
-    for _, pomFile in ipairs(MavenToolsImporterNew.pomFiles) do
-        start_pom_file_processor_task(utils.Path(pomFile))
+    MavenImporterNew.mavenInfoToProjectInfoMap[projectInfoStr] = nil
+    MavenImporterNew.pomFileToMavenInfoMap[pomFile] = nil
+
+    for _, module in ipairs(project.modules) do
+        local parents = MavenImporterNew.pomFileIsModuleSet[module]
+        MavenImporterNew.pomFileIsModuleSet[module] = nil
+
+        for info, _ in pairs(parents) do
+            if info ~= projectInfoStr then
+                if MavenImporterNew.pomFileIsModuleSet[module] == nil then
+                    MavenImporterNew.pomFileIsModuleSet[module] = { [info] = true }
+                else
+                    MavenImporterNew.pomFileIsModuleSet[module][info] = true
+                end
+            end
+        end
     end
 end
 
--- local str = "/home/helmy/project/pom.xml"
---
--- local pathTest = utils.Path("/home/helmy/project/pom.xml")
--- assert(pathTest, "")
--- print(pathTest:dirname().str)
--- print(pathTest:dirname():join("module/module1").str)
--- print(pathTest:dirname():join("/module/module2").str)
--- print(pathTest:dirname():join("/module/module3/").str)
+---@param project ProjectInfo|string
+function MavenImporterNew.refresh_prject(project)
+    if type(project) == "string" then --TODO: error project
+    else
+        remove_project(project.pomFile)
 
-return MavenToolsImporterNew
+        taskMgr:set_on_idle_callback(idle_callback_init)
+        start_pom_file_processor_task(utils.Path(project.pomFile))
+        taskMgr:trigger_idle_callback_if_idle()
+    end
+end
+
+function MavenImporterNew.update(dir, callback)
+    cwd = utils.Path(dir)
+
+    update_callback = function()
+        vim.schedule(callback)
+    end
+
+    MavenImporterNew.status = "Looking of pom.xml files"
+
+    update_callback()
+    assert(cwd ~= nil, "")
+
+    filesTaskMgr:set_on_idle_callback(function()
+        print("updated file types")
+        update_callback()
+    end)
+
+    start_update_java_files_properties_task()
+
+    MavenImporterNew.pomFiles = utils.find_pom_files(cwd.str)
+
+    local cachePath = cwd:join(config.localConfigDir):join("cache.json")
+
+    taskMgr:readFile(cachePath.str, function(cacheStr)
+        vim.schedule(function()
+            taskMgr:set_on_idle_callback(idle_callback_init)
+            local success, cache = pcall(vim.fn.json_decode, cacheStr)
+            local useCache = false
+
+            if success then
+                if
+                    cache.version ~= nil
+                    and cache.version == config.version
+                    and cache.importerChecksum ~= nil
+                    and cache.importerChecksum == mavenConfig.importer_checksum()
+                    and cache.mavenInfoToProjectInfoMap ~= nil
+                    and cache.pomFileToMavenInfoMap ~= nil
+                    and cache.pluginInfoToPluginMap ~= nil
+                    and cache.pomFileIsModuleSet ~= nil
+                    and cache.pomFileToErrorMap ~= nil
+                then
+                    useCache = true
+
+                    MavenImporterNew.mavenInfoToProjectInfoMap = cache.mavenInfoToProjectInfoMap
+                    MavenImporterNew.pomFileToMavenInfoMap = cache.pomFileToMavenInfoMap
+                    MavenImporterNew.pluginInfoToPluginMap = cache.pluginInfoToPluginMap
+                    MavenImporterNew.pomFileIsModuleSet = cache.pomFileIsModuleSet
+                    MavenImporterNew.pomFileToErrorMap = cache.pomFileToErrorMap
+                end
+            end
+
+            update_callback()
+
+            if useCache then
+                for pomFile, _ in pairs(MavenImporterNew.pomFileToMavenInfoMap) do
+                    if
+                        MavenImporterNew.pomFiles:find(pomFile) == nil
+                        and MavenImporterNew.pomFileIsModuleSet[pomFile] == nil
+                    then
+                        remove_project(pomFile)
+                    end
+                end
+
+                ---TODO: remove error projects
+            end
+
+            for _, pomFile in ipairs(MavenImporterNew.pomFiles) do
+                pomFile = utils.Path(pomFile)
+                if useCache then
+                    if
+                        MavenImporterNew.pomFileToMavenInfoMap[pomFile.str] == nil
+                        or utils.file_checksum(pomFile.str)
+                            ~= MavenImporterNew.pomFileToMavenInfoMap[pomFile.str].checksum
+                    then
+                        if
+                            MavenImporterNew.mavenInfoToProjectInfoMap[MavenImporterNew.info_to_str(
+                                MavenImporterNew.pomFileToMavenInfoMap[pomFile.str].info
+                            )] ~= nil
+                        then
+                            MavenImporterNew.refresh_prject(
+                                MavenImporterNew.mavenInfoToProjectInfoMap[MavenImporterNew.info_to_str(
+                                    MavenImporterNew.pomFileToMavenInfoMap[pomFile.str].info
+                                )]
+                            )
+                        else
+                        end
+                        start_pom_file_processor_task(pomFile)
+                    elseif MavenImporterNew.pomFileToMavenInfoMap[pomFile.str] ~= nil then
+                        update_project_files(
+                            MavenImporterNew.mavenInfoToProjectInfoMap[MavenImporterNew.info_to_str(
+                                MavenImporterNew.pomFileToMavenInfoMap[pomFile.str].info
+                            )],
+                            false
+                        )
+                        update_project_files(
+                            MavenImporterNew.mavenInfoToProjectInfoMap[MavenImporterNew.info_to_str(
+                                MavenImporterNew.pomFileToMavenInfoMap[pomFile.str].info
+                            )],
+                            true
+                        )
+                    end
+                else
+                    start_pom_file_processor_task(pomFile)
+                end
+            end
+
+            taskMgr:trigger_idle_callback_if_idle()
+        end)
+    end)
+end
+
+return MavenImporterNew

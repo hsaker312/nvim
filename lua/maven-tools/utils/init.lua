@@ -58,7 +58,7 @@ end
 
 ---@param str string
 function MavenToolsUtils.escape_match_specials(str)
-  return str:gsub("([()%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+    return str:gsub("([()%.%%%+%-%*%?%[%]%^%$])", "%%%1")
 end
 
 function MavenToolsUtils.table_join(t1, t2)
@@ -105,6 +105,25 @@ function MavenToolsUtils.get_editor_window()
     end
 
     return nil
+end
+
+---@param file string
+function MavenToolsUtils.open_file(file)
+    if file ~= nil then
+        local file_buf = MavenToolsUtils.get_file_buffer(file)
+
+        local editor_win = MavenToolsUtils.get_editor_window()
+
+        if editor_win ~= nil then
+            if file_buf == nil then
+                vim.api.nvim_win_call(editor_win, function()
+                    vim.api.nvim_command("edit " .. file)
+                end)
+            else
+                vim.api.nvim_win_set_buf(editor_win, file_buf)
+            end
+        end
+    end
 end
 
 ---@param ary table|nil
@@ -470,10 +489,9 @@ function MavenToolsUtils.Path(path)
     return obj
 end
 
----@param pomFile string
+---@param path string
 ---@return string[]
-function MavenToolsUtils.list_java_files(pomFile)
-    local pomDir = pomFile:match("(.*/)") or "./"
+function MavenToolsUtils.list_java_files(path)
     local javaFiles = {}
 
     local function scan_directory(dir)
@@ -504,7 +522,7 @@ function MavenToolsUtils.list_java_files(pomFile)
         end
     end
 
-    scan_directory(pomDir)
+    scan_directory(path)
 
     return javaFiles
 end
@@ -787,7 +805,8 @@ function MavenToolsUtils.Task_Mgr()
 
     ---@param file string
     ---@param callback fun(lines: string):nil
-    function task_manager:readFile(file, callback)
+    ---@param lineCount integer|nil
+    function task_manager:readFile(file, callback, lineCount)
         local cmd
         local cmdArgs = {}
         if config.OS == "Windows" then
@@ -796,10 +815,15 @@ function MavenToolsUtils.Task_Mgr()
             table.insert(cmdArgs, "-Command")
             table.insert(cmdArgs, "Get-Content")
             table.insert(cmdArgs, '"' .. file .. '"')
+
+            if type(lineCount) == "number" then
+                table.insert(cmdArgs, "-TotalCount")
+                table.insert(cmdArgs, tostring(lineCount))
+            end
         else
             cmd = "sh"
             table.insert(cmdArgs, "-c")
-            table.insert(cmdArgs, "cat \"" .. file .. "\"")
+            table.insert(cmdArgs, 'cat "' .. file .. '"')
         end
 
         self:run({ cmd = cmd, args = cmdArgs }, callback)

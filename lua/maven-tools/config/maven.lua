@@ -319,7 +319,6 @@ end
 function MavenToolsMavenConfig.update()
     importer = make_shell_command(MavenToolsMavenConfig.importerJdk, MavenToolsMavenConfig.importerOptions)
     runner = make_shell_command(MavenToolsMavenConfig.runnerJdk, MavenToolsMavenConfig.runnerOptions)
-    print(vim.inspect(runner))
 end
 
 return MavenToolsMavenConfig
