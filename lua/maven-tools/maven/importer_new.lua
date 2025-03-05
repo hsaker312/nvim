@@ -247,7 +247,7 @@ local function update_project_files(projectInfo, test)
     local javaFiles = utils.list_java_files(filesPrefix)
 
     for _, javaFile in ipairs(javaFiles) do
-        local relativePath, count = javaFile:gsub(filesPrefix .. "/", "")
+        local relativePath, count = javaFile:gsub(utils.escape_match_specials(filesPrefix .. "/"), "")
 
         if count == 1 then
             local dir, filename = relativePath:match("(.*/)([^/]*)$")
@@ -702,26 +702,42 @@ end
 MavenImporterNew.fileProperties = {}
 
 local function start_update_java_files_properties_task()
-    local cmd = "powershell.exe"
+    local cmd
     local args = {}
 
-    table.insert(args, "-NoProfile")
-    table.insert(args, "-Command")
-    table.insert(args, "rg")
-    table.insert(args, "--multiline")
-    table.insert(args, "-e")
-    table.insert(args, '"class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+"')
-    table.insert(args, "-e")
-    table.insert(args, '"static\\s+[^\\s]*\\s*void\\s+main\\s*\\("')
-    table.insert(args, "-e")
-    table.insert(args, '"@Test"')
-    table.insert(args, "-e")
-    table.insert(args, "import\\s+org\\.junit\\.")
-    table.insert(args, "-g")
-    table.insert(args, '"*.java"')
-    table.insert(args, '"' .. cwd.str .. '"')
+    if config.OS == "Windows" then
+        cmd = "powershell.exe"
+
+        table.insert(args, "-NoProfile")
+        table.insert(args, "-Command")
+        table.insert(args, "rg")
+        table.insert(args, "--multiline")
+        table.insert(args, "-e")
+        table.insert(args, '"class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+"')
+        table.insert(args, "-e")
+        table.insert(args, '"static\\s+[^\\s]*\\s*void\\s+main\\s*\\("')
+        table.insert(args, "-e")
+        table.insert(args, '"@Test"')
+        table.insert(args, "-e")
+        table.insert(args, '"import\\s+org\\.junit\\."')
+        table.insert(args, "-g")
+        table.insert(args, '"*.java"')
+        table.insert(args, '"' .. cwd.str .. '"')
+    else
+        cmd = "sh"
+        table.insert(args, "-c")
+        table.insert(
+            args,
+            'rg --multiline -e "class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+" -e "static\\s+[^\\s]*\\s*void\\s+main\\s*\\(" -e "@Test" -e "import\\s+org\\.junit\\." -g "*.java" '
+                .. '"'
+                .. cwd.str
+                .. '"'
+        )
+    end
 
     filesTaskMgr:run({ cmd = cmd, args = args }, function(lines)
+        print(lines)
+
         for line in lines:gmatch("[^\n]*") do
             for pathStr, match in line:gmatch("(.+)java:(.+)") do
                 -- if match:match("[%*/]") == nil then
@@ -735,7 +751,6 @@ local function start_update_java_files_properties_task()
 
                 if type == "class" or type == "interface" or type == "@interface" or type == "enum" then
                     MavenImporterNew.fileProperties[path.str].type = type
-                    print(vim.inspect(MavenImporterNew.fileProperties[path.str]))
                 end
 
                 local main = match:match("void%s+main%s*%(")
