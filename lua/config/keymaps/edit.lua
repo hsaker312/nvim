@@ -373,19 +373,31 @@ for i = 0, 5, 1 do
     end, { noremap = true, silent = true, desc = "Wrap highlight with " .. i .. "register''" })
 end
 
+vim.keymap.set("n", "<c-T>", "<CR>")
 vim.keymap.set("n", "<CR>", function()
-    local line_num = vim.fn.line(".")
-    local col_num = vim.fn.col(".")
-    local line_len = #vim.fn.getline(line_num)
+    local buf = vim.api.nvim_get_current_buf()
 
-    if col_num < line_len then
-        vim.cmd('execute "normal! a\r"')
-        vim.cmd("startinsert")
-        vim.cmd("normal! l")
+    local mod = vim.api.nvim_get_option_value("modifiable", {
+        buf = buf,
+    })
+
+    if mod == true then
+        local line_num = vim.fn.line(".")
+        local col_num = vim.fn.col(".")
+        local line_len = #vim.fn.getline(line_num)
+
+        if col_num < line_len then
+            vim.cmd('execute "normal! a\r"')
+            vim.cmd("startinsert")
+            vim.cmd("normal! l")
+        else
+            vim.cmd('execute "normal! a\r"')
+            vim.cmd("startinsert")
+        end
     else
-        vim.cmd('execute "normal! a\r"')
-        vim.cmd("startinsert")
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<c-T>", true, true, true), "", true)
     end
+
 end, { noremap = true, silent = true, desc = "New Line" })
 
 vim.keymap.set("v", "<CR>", function()

@@ -29,6 +29,9 @@ MavenToolsConfig.ignoreFiles = {
     ".*/target/.*",
 }
 
+---@type string[]
+MavenToolsConfig.externalProjects = {}
+
 ---@type string
 MavenToolsConfig.tab = "   "
 

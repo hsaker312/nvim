@@ -36,6 +36,10 @@
 ---@field hide boolean|nil
 ---@field type TreeEntryType
 
+---@class EntryInfo
+---@field expanded boolean
+---@field hide boolean?
+
 ---@class MavenMainWindow
 MavenToolsMainWindow = {}
 
@@ -50,11 +54,11 @@ local config = require(prefix .. "config.config")
 ---@type MavenUtils
 local utils = require(prefix .. "utils")
 
----@type MavenImporter
-local mavenImporter = require(prefix .. "maven.importer")
-
 ---@type MavenImporterNew
 local mavenImporterNew = require(prefix .. "maven.importer_new")
+
+---@type MavenToolsConfig
+local mavenConfig = require(prefix .. "config.maven")
 
 ---@type MavenRunner
 local runner = require(prefix .. "maven.runner")
@@ -65,21 +69,18 @@ local mavenWin = nil
 ---@type integer|nil
 local mavenBuf = nil
 
----@type table<integer,fun(entry:TreeEntry):boolean>
-local lineCallback = {}
+---@type table<integer, fun(callback:fun(entryType:TreeEntryType, entryInfo:EntryInfo?, projectInfo:ProjectInfo|nil, args:table))>
+local lineCallbackNew = {}
 
 ---@class JavaFileTracker
 ---@field entries EntryInfo[]
 ---@field line integer
 
 ---@type table<string, JavaFileTracker>
-local javaFilesMap = {}
+local fileToEntriesMap = {}
 
 ---@type table<integer,integer?>
 local lineRange = {}
-
----@type LineRoot[]
-local lineRoots = {}
 
 ---@type integer[]
 local autocmds = {}
@@ -96,73 +97,41 @@ local projectFilesUpdateTimer = nil
 ---@type integer
 local requestRows = 25
 
-local entriesMap = {
-    ---@type table<string, TreeEntryNew>
+local entriesInfo = {
+    ---@type table<string, EntryInfo>
     projects = {},
 
-    ---@type table<string, TreeEntryNew>
-    dependencies = {},
-
-    ---@type table<string, TreeEntryNew>
+    ---@type table<string, EntryInfo>
     plugins = {},
 
-    ---@type table<string, TreeEntryNew>
-    files = {},
+    container = {
+        ---@type table<string, EntryInfo>
+        lifecycle = {},
+
+        ---@type table<string, EntryInfo>
+        plugins = {},
+
+        ---@type table<string, EntryInfo>
+        dependencies = {},
+
+        ------@type table<string, EntryInfo>
+        ---files = {},
+
+        ---@type table<string, table<"files"|"tests", table<string, EntryInfo>>>
+        folders = {},
+    },
 }
 
----@type table<"0"|"1"|"2"|"3",fun(entry:TreeEntry):fun():boolean>
-local entryCallbackMap = {
-    ---@param item TreeEntry
-    ---@return function
-    ["0"] = function(item)
-        return function()
-            item.expanded = not item.expanded
-
-            return true
-        end
-    end,
-    ["1"] = function(item)
-        ---@param entry TreeEntry
-        return function(entry)
-            runner.run(
-                item,
-                mavenImporter.mavenInfoPomFile[tostring(entry.info)],
-                console.console_reset,
-                console.console_append
-            )
-
-            return false
-        end
-    end,
-    ["2"] = function(_)
-        return function()
-            return false
-        end
-    end,
-    ["3"] = function(item)
-        return function()
-            local file = item.file
-
-            --TODO: vvvv move to a function in utils vvvv
-            if file ~= nil then
-                local file_buf = utils.get_file_buffer(file)
-
-                local editor_win = utils.get_editor_window()
-
-                if editor_win ~= nil then
-                    if file_buf == nil then
-                        vim.api.nvim_win_call(editor_win, function()
-                            vim.api.nvim_command("edit " .. file)
-                        end)
-                    else
-                        vim.api.nvim_win_set_buf(editor_win, file_buf)
-                    end
-                end
-            end
-
-            return false
-        end
-    end,
+local defaultLifecycles = {
+    ["clean"] = true,
+    ["validate"] = true,
+    ["compile"] = true,
+    ["test"] = true,
+    ["package"] = true,
+    ["verify"] = true,
+    ["install"] = true,
+    ["site"] = true,
+    ["deploy"] = true,
 }
 
 ---@param win integer
@@ -196,10 +165,6 @@ end
 
 ---@param buf integer
 local function set_main_buffer_options(buf)
-    vim.api.nvim_set_option_value("modifiable", false, {
-        buf = buf,
-    })
-
     vim.api.nvim_set_option_value("buftype", "nofile", {
         buf = buf,
     })
@@ -215,6 +180,7 @@ local key_action_map = {
     ["project_filter"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".filter()<CR>",
     ["run_command"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".run()<CR>",
     ["add_dependency"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".add_dependency()<CR>",
+    ["add_local_dependency"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".add_local_dependency()<CR>",
     ["download_sources"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".download_sources()<CR>",
     ["download_documentation"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".download_documentation()<CR>",
     ["download_sources_and_documentation"] = "<Cmd>lua require('"
@@ -223,11 +189,13 @@ local key_action_map = {
         .. ".download_sources_and_documentation()<CR>",
     ["hide_item"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".toggle_hide()<CR>",
     ["show_all_items"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".show_all()<CR>",
-    ["refresh_prject"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".refresh_entry()<CR>",
+    ["refresh_project"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".refresh_entry()<CR>",
     ["effective_pom"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".show_effective_pom()<CR>",
     ["open_pom"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".open_pom_file()<CR>",
     ["show_error"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".show_error()<CR>",
     ["refresh_files"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".refresh_files()<CR>",
+    ["keybinds_hint"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".keybinds_hint()<CR>",
+    ["add_project"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".add_new_project()<CR>",
 }
 
 MavenToolsMainWindow.keymap = {
@@ -236,16 +204,19 @@ MavenToolsMainWindow.keymap = {
     ["project_filter"] = { "<C-f>" },
     ["run_command"] = { "<C-r>" },
     ["add_dependency"] = { "a" },
+    ["add_local_dependency"] = { "A" },
     ["download_sources"] = { "ds" },
     ["download_documentation"] = { "dd" },
     ["download_sources_and_documentation"] = { "da" },
     ["hide_item"] = { "h" },
     ["show_all_items"] = { "H" },
-    ["refresh_prject"] = { "r" },
+    ["refresh_project"] = { "r" },
     ["effective_pom"] = { "ep" },
     ["open_pom"] = { "o" },
     ["show_error"] = { "e" },
     ["refresh_files"] = { "R" },
+    ["keybinds_hint"] = { "?" },
+    ["add_project"] = { "p" },
 }
 
 ---@param buf integer
@@ -275,12 +246,6 @@ local function set_main_buffer_highlights(buf, highlights)
     end
 end
 
----@param item TreeEntry
----@return fun():boolean
-local make_entry_callback = function(item)
-    return entryCallbackMap[item.callback](item)
-end
-
 ---@param lines Array
 ---@param highlights Highlight[]
 local function create_header(lines, highlights)
@@ -294,11 +259,11 @@ local function create_header(lines, highlights)
     })
 
     if not mavenImporterNew.idle() then
-        local progress = " ("
+        local progress = " ["
             .. mavenImporterNew.status
             .. " "
             .. tostring(mavenImporterNew.progress()):gsub("%.%d+", "")
-            .. "%)"
+            .. "%]"
 
         table.insert(highlights, {
             highlight = "@comment",
@@ -308,6 +273,16 @@ local function create_header(lines, highlights)
         })
 
         header = header .. progress
+    elseif showAll then
+        local showAllComment = " [Show All]"
+        table.insert(highlights, {
+            highlight = "@comment",
+            lineNum = lines:size(),
+            colBegin = #header,
+            colEnd = #header + #showAllComment
+        })
+
+        header = header .. showAllComment
     end
 
     lines:append(header)
@@ -315,10 +290,6 @@ local function create_header(lines, highlights)
     for i = 1, lines:size(), 1 do
         lineRange[i] = nil
     end
-
-    table.insert(lineCallback, function()
-        return false
-    end)
 end
 
 ---@param lines Array
@@ -343,257 +314,7 @@ local function create_footer(lines, highlights, filterEnabled)
     lines:append(line)
 
     lineRange[lines:size()] = 0
-
-    table.insert(lineCallback, function()
-        return false
-    end)
 end
-
----@param item TreeEntry
----@return boolean
-local function filter_match(item)
-    local info = tostring(item.info)
-
-    if info:len() > 2 then
-        if info:match(filter) ~= nil then
-            return true
-        end
-    end
-
-    for _, textObj in ipairs(item.textObjs) do
-        if textObj.text:len() > 2 then
-            if textObj.text:match(filter) ~= nil then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
----@param children TreeEntry[]
----@param tab string
----@param lines Array
----@param highlights Highlight[]
-local function append_children(children, tab, lines, highlights)
-    local currentTab = tab
-
-    for _, child in pairs(children) do
-        if child.children[1] ~= nil or child.showAlways then
-            local line = currentTab
-
-            if child.children[1] ~= nil then
-                if child.expanded then
-                    line = line .. " "
-                else
-                    line = line .. " "
-                end
-
-                table.insert(highlights, {
-                    highlight = "@SignColomn",
-                    lineNum = lines:size(),
-                    colBegin = 0,
-                    colEnd = #line,
-                })
-            else
-                line = line .. "  "
-            end
-
-            for i, textObj in ipairs(child.textObjs) do
-                line = line .. textObj.text
-
-                if i == 1 then
-                    lineRange[lines:size() + 1] = #line
-                end
-
-                table.insert(highlights, {
-                    highlight = textObj.hl,
-                    lineNum = lines:size(),
-                    colBegin = #line - #textObj.text,
-                    colEnd = #line,
-                })
-            end
-
-            lines:append(line)
-
-            table.insert(lineCallback, make_entry_callback(child))
-
-            if child.children[1] ~= nil and child.expanded then
-                append_children(child.children, currentTab .. config.tab, lines, highlights)
-            end
-        end
-    end
-end
-
----@param modules TreeEntry
----@param tab string
----@param lines Array
----@param highlights Highlight[]
----@param filterEnabled boolean
----@param subModule boolean
----@return boolean
-local function append_modules(modules, tab, lines, highlights, filterEnabled, subModule)
-    if modules == nil then
-        return false
-    end
-
-    for _, module in pairs(modules.children) do
-        local startLine = lines:size() + 1
-
-        local showModule = ((subModule or not filterEnabled) and (module.hide == nil or showAll))
-            or (filterEnabled and filter_match(module))
-
-        if showModule then
-            append_children(
-                { module },
-                (filterEnabled and not subModule) and tab or tab .. config.tab,
-                lines,
-                highlights
-            )
-        end
-
-        if module.expanded or filterEnabled then
-            append_modules(
-                module.modules,
-                filterEnabled and tab or tab .. config.tab,
-                lines,
-                highlights,
-                filterEnabled,
-                showModule and module.expanded == true
-            )
-        end
-
-        table.insert(lineRoots, { first = startLine, last = lines:size(), item = module })
-    end
-
-    return true
-end
-
----@return Array
----@return Highlight[]
-local function generate_main_buffer_lines()
-    local lines = utils.Array()
-
-    ---@type Highlight[]
-    local highlights = {}
-
-    local filterEnabled = filter:len() > 0
-
-    create_header(lines, highlights)
-
-    for _, file in ipairs(mavenImporter.pomFiles) do
-        local item = nil
-
-        if
-            mavenImporter.pomFileMavenInfo[file] ~= nil
-            and mavenImporter.pomFileMavenInfo[file].info ~= nil
-            and mavenImporter.mavenEntries[tostring(mavenImporter.pomFileMavenInfo[file].info)] ~= nil
-        then
-            item = mavenImporter.mavenEntries[tostring(mavenImporter.pomFileMavenInfo[file].info)]
-        elseif mavenImporter.mavenEntries[file] ~= nil then
-            item = mavenImporter.mavenEntries[file]
-        end
-
-        if item ~= nil then
-            local startLine = lines:size()
-
-            ---@cast item TreeEntry
-            if item.module == 0 then
-                local matchedItem = (item.hide == nil or showAll)
-
-                if filterEnabled then
-                    matchedItem = filter_match(item)
-                end
-
-                if matchedItem then
-                    local line = ""
-
-                    if item.children[1] ~= nil then
-                        if item.expanded then
-                            line = " "
-                        else
-                            line = " "
-                        end
-                    else
-                        line = "  "
-                    end
-
-                    table.insert(highlights, {
-                        highlight = "@SignColomn",
-                        lineNum = lines:size(),
-                        colBegin = 0,
-                        colEnd = #line,
-                    })
-
-                    for i, textObj in ipairs(item.textObjs) do
-                        line = line .. textObj.text
-
-                        if i == 1 then
-                            lineRange[lines:size() + 1] = #line
-                        end
-
-                        table.insert(highlights, {
-                            highlight = textObj.hl,
-                            lineNum = lines:size(),
-                            colBegin = #line - #textObj.text,
-                            colEnd = #line,
-                        })
-                    end
-
-                    lines:append(line)
-
-                    table.insert(lineCallback, make_entry_callback(item))
-                end
-
-                if item.expanded and matchedItem then
-                    append_children(item.children, config.tab, lines, highlights)
-                    append_modules(item.modules, "", lines, highlights, filterEnabled, true)
-                elseif filterEnabled then
-                    append_modules(item.modules, "", lines, highlights, filterEnabled, false)
-                end
-
-                table.insert(lineRoots, { first = startLine, last = lines:size(), item = item })
-            end
-        end
-    end
-
-    if lines:size() < 2 then
-        create_footer(lines, highlights, filterEnabled)
-    end
-
-    return lines, highlights
-end
-
----@class EntryInfo
----@field expanded boolean
-
-local entriesInfo = {
-    ---@type table<string, EntryInfo>
-    projects = {},
-
-    ---@type table<string, EntryInfo>
-    plugins = {},
-
-    container = {
-        ---@type table<string, EntryInfo>
-        lifecycle = {},
-
-        ---@type table<string, EntryInfo>
-        plugins = {},
-
-        ---@type table<string, EntryInfo>
-        dependencies = {},
-
-        ---@type table<string, EntryInfo>
-        files = {},
-
-        ---@type table<string, table<"files"|"tests", table<string, EntryInfo>>>
-        folders = {},
-    },
-}
-
----@type table<integer, fun(callback:fun(entryType:TreeEntryType, entryInfo:EntryInfo?, projectInfo:ProjectInfo|nil, args:table))>
-local lineCallbackNew = {}
 
 ---@param lineNum integer
 ---@param line string
@@ -904,10 +625,6 @@ local function get_java_file_type(file)
     end
 end
 
----@param file string
----@return boolean
-local function is_java_file_test(file) end
-
 ---@param file ProjectFile
 ---@return boolean
 local function is_java_file_runnable(file)
@@ -933,7 +650,7 @@ end
 ---@param file string
 ---@param entry EntryInfo
 local function append_java_file_to_map(file, entry)
-    table.insert(javaFilesMap[file].entries, entry)
+    table.insert(fileToEntriesMap[file].entries, entry)
 end
 
 ---@param currentTab string
@@ -956,42 +673,13 @@ local function generate_project_files_lines(
         return
     end
 
-    if entriesInfo.container.files[mavenInfoStr] == nil then
-        entriesInfo.container.files[mavenInfoStr] = { expanded = false }
-    end
-
     if entriesInfo.container.folders[mavenInfoStr] == nil then
         entriesInfo.container.folders[mavenInfoStr] = { files = {}, tests = {} }
     end
 
-    local line = currentTab
+    local line
 
     if parentVisible then
-        local sign
-        if entriesInfo.container.files[mavenInfoStr].expanded then
-            sign = " "
-        else
-            sign = " "
-        end
-
-        line = line_cat_highlight(lines:size(), line, sign, config.signHighlight, highlights)
-
-        line = line_cat_highlight(lines:size(), line, " ", config.containerIconHighlight, highlights)
-
-        lineRange[lines:size() + 1] = #line
-
-        line = line_cat_highlight(lines:size(), line, "Files", config.containerTextHighlight, highlights)
-
-        lines:append(line)
-
-        lineCallbackNew[lines:size()] = function(callback)
-            return callback("container", entriesInfo.container.files[mavenInfoStr], projectInfo, {})
-        end
-    end
-
-    if entriesInfo.container.files[mavenInfoStr].expanded and parentVisible then
-        currentTab = currentTab .. config.tab
-
         for folder, files in pairs(projectInfo.files) do
             if files[1] ~= nil then
                 if entriesInfo.container.folders[mavenInfoStr].files[folder] == nil then
@@ -1064,9 +752,9 @@ local function generate_project_files_lines(
                             return callback("file", nil, projectInfo, { path = file.path })
                         end
 
-                        javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                        fileToEntriesMap[file.path] = { line = lines:size(), entries = {} }
                         append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].files[folder])
-                        append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                        -- append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
                         append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
 
                         for _, parent in ipairs(parents) do
@@ -1152,9 +840,9 @@ local function generate_project_files_lines(
                             return callback("file", nil, projectInfo, { path = file.path })
                         end
 
-                        javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                        fileToEntriesMap[file.path] = { line = lines:size(), entries = {} }
                         append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].tests[folder])
-                        append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                        -- append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
                         append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
 
                         for _, parent in ipairs(parents) do
@@ -1166,7 +854,7 @@ local function generate_project_files_lines(
                 end
             end
         end
-    else
+    elseif filter:len() == 0 then
         for folder, files in pairs(projectInfo.files) do
             if files[1] ~= nil then
                 if entriesInfo.container.folders[mavenInfoStr].files[folder] == nil then
@@ -1174,9 +862,9 @@ local function generate_project_files_lines(
                 end
 
                 for _, file in ipairs(files) do
-                    javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                    fileToEntriesMap[file.path] = { line = lines:size(), entries = {} }
                     append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].files[folder])
-                    append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                    -- append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
                     append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
 
                     for _, parent in ipairs(parents) do
@@ -1193,9 +881,9 @@ local function generate_project_files_lines(
                 end
 
                 for _, file in ipairs(files) do
-                    javaFilesMap[file.path] = { line = lines:size(), entries = {} }
+                    fileToEntriesMap[file.path] = { line = lines:size(), entries = {} }
                     append_java_file_to_map(file.path, entriesInfo.container.folders[mavenInfoStr].tests[folder])
-                    append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
+                    -- append_java_file_to_map(file.path, entriesInfo.container.files[mavenInfoStr])
                     append_java_file_to_map(file.path, entriesInfo.projects[mavenInfoStr])
 
                     for _, parent in ipairs(parents) do
@@ -1205,6 +893,70 @@ local function generate_project_files_lines(
             end
         end
     end
+end
+
+---@param projectInfo ProjectInfo
+---@return boolean
+local function show_project(projectInfo)
+    if showAll then
+        return true
+    end
+
+    if entriesInfo.projects[mavenImporterNew.info_to_str(projectInfo.info)].hide == nil then
+        return true
+    else
+        return not entriesInfo.projects[mavenImporterNew.info_to_str(projectInfo.info)].hide
+    end
+end
+
+---@param projectInfo ProjectInfo
+---@return boolean
+local function filter_project(projectInfo)
+    if filter:len() == 0 then
+        return true
+    end
+
+    local match = nil
+
+    if projectInfo.name ~= nil then
+        match = projectInfo.name:match(filter)
+    end
+
+    if match ~= nil then
+        return true
+    end
+
+    match = mavenImporterNew.info_to_str(projectInfo.info):match(filter)
+
+    if match ~= nil then
+        return true
+    end
+
+    for package, files in pairs(projectInfo.files) do
+        if package:match(filter) then
+            return true
+        end
+
+        for _, file in ipairs(files) do
+            if file.filename:match(filter) then
+                return true
+            end
+        end
+    end
+
+    for package, files in pairs(projectInfo.testFiles) do
+        if package:match(filter) then
+            return true
+        end
+
+        for _, file in ipairs(files) do
+            if file.filename:match(filter) then
+                return true
+            end
+        end
+    end
+
+    return false
 end
 
 ---@param currentTab string
@@ -1219,7 +971,7 @@ local function generate_project_lines(currentTab, mavenInfoStr, projectInfo, lin
         entriesInfo.projects[mavenInfoStr] = { expanded = false }
     end
 
-    if parentVisible then
+    if parentVisible and show_project(projectInfo) then
         local line = currentTab
 
         line = line_cat_highlight(
@@ -1241,9 +993,23 @@ local function generate_project_lines(currentTab, mavenInfoStr, projectInfo, lin
         lineCallbackNew[lines:size()] = function(callback)
             return callback("project", entriesInfo.projects[mavenInfoStr], projectInfo, {})
         end
+
+        if projectInfo.pomFile ~= nil then
+            fileToEntriesMap[projectInfo.pomFile] = { line = lines:size(), entries = {} }
+
+            for _, parent in ipairs(parents) do
+                append_java_file_to_map(projectInfo.pomFile, entriesInfo.projects[parent])
+            end
+        end
+    elseif projectInfo.pomFile ~= nil and filter:len() == 0 and show_project(projectInfo) then
+        fileToEntriesMap[projectInfo.pomFile] = { line = lines:size(), entries = {} }
+
+        for _, parent in ipairs(parents) do
+            append_java_file_to_map(projectInfo.pomFile, entriesInfo.projects[parent])
+        end
     end
 
-    if entriesInfo.projects[mavenInfoStr].expanded and parentVisible then
+    if entriesInfo.projects[mavenInfoStr].expanded and parentVisible and show_project(projectInfo) then
         generate_project_lifecycle_lines(currentTab .. config.tab, mavenInfoStr, projectInfo, lines, highlights)
         generate_project_dependencies_lines(currentTab .. config.tab, mavenInfoStr, projectInfo, lines, highlights)
         generate_project_plugins_lines(currentTab .. config.tab, mavenInfoStr, projectInfo, lines, highlights)
@@ -1257,29 +1023,29 @@ local function generate_project_lines(currentTab, mavenInfoStr, projectInfo, lin
             true
         )
 
-        -- table.insert(parents, mavenInfoStr)
+        if filter:len() == 0 then
+            for _, modulePomFile in ipairs(projectInfo.modules) do
+                local currentParents = utils.deepcopy(parents)
+                table.insert(currentParents, mavenInfoStr)
+                if mavenImporterNew.pomFileToMavenInfoMap[modulePomFile] ~= nil then
+                    local moduleInfoStr =
+                        mavenImporterNew.info_to_str(mavenImporterNew.pomFileToMavenInfoMap[modulePomFile].info)
 
-        for _, modulePomFile in ipairs(projectInfo.modules) do
-            local currentParents = utils.deepcopy(parents)
-            table.insert(currentParents, mavenInfoStr)
-            if mavenImporterNew.pomFileToMavenInfoMap[modulePomFile] ~= nil then
-                local moduleInfoStr =
-                    mavenImporterNew.info_to_str(mavenImporterNew.pomFileToMavenInfoMap[modulePomFile].info)
-
-                if mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr] ~= nil then
-                    generate_project_lines(
-                        currentTab .. config.tab,
-                        moduleInfoStr,
-                        mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr],
-                        lines,
-                        highlights,
-                        currentParents,
-                        true
-                    )
+                    if mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr] ~= nil then
+                        generate_project_lines(
+                            currentTab .. config.tab,
+                            moduleInfoStr,
+                            mavenImporterNew.mavenInfoToProjectInfoMap[moduleInfoStr],
+                            lines,
+                            highlights,
+                            currentParents,
+                            true
+                        )
+                    end
                 end
             end
         end
-    else
+    elseif filter:len() == 0 and show_project(projectInfo) then
         generate_project_files_lines(
             currentTab .. config.tab,
             mavenInfoStr,
@@ -1289,8 +1055,6 @@ local function generate_project_lines(currentTab, mavenInfoStr, projectInfo, lin
             parents,
             false
         )
-
-        -- table.insert(parents, mavenInfoStr)
 
         for _, modulePomFile in ipairs(projectInfo.modules) do
             local currentParents = utils.deepcopy(parents)
@@ -1328,9 +1092,35 @@ local function generate_main_buffer_lines_new()
 
     create_header(lines, highlights)
 
-    for mavenInfoStr, projectInfo in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
-        if mavenImporterNew.pomFileIsModuleSet[projectInfo.pomFile] == nil then
-            generate_project_lines("", mavenInfoStr, projectInfo, lines, highlights, {}, true)
+    fileToEntriesMap = {}
+
+    if filter:len() == 0 and mavenImporterNew.statusCode > 2 then
+        for _, pomFile in ipairs(mavenImporterNew.pomFiles) do
+            if
+                mavenImporterNew.pomFileToMavenInfoMap[pomFile] ~= nil
+                and mavenImporterNew.pomFileIsModuleSet[pomFile] == nil
+            then
+                local mavenInfo = mavenImporterNew.pomFileToMavenInfoMap[pomFile].info
+                local infoStr = mavenImporterNew.info_to_str(mavenInfo)
+                local projectInfo = mavenImporterNew.mavenInfoToProjectInfoMap[infoStr]
+                if projectInfo ~= nil then
+                    generate_project_lines("", infoStr, projectInfo, lines, highlights, {}, true)
+                end
+            end
+        end
+    else
+        for mavenInfoStr, projectInfo in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
+            if projectInfo ~= nil then
+                generate_project_lines(
+                    "",
+                    mavenInfoStr,
+                    projectInfo,
+                    lines,
+                    highlights,
+                    {},
+                    filter_project(projectInfo)
+                )
+            end
         end
     end
 
@@ -1339,8 +1129,8 @@ local function generate_main_buffer_lines_new()
             local line = ""
 
             line = line_cat_highlight(lines:size(), line, " ", config.projectErrorIconHighlight, highlights)
-            line = line_cat_highlight(lines:size(), line, "error", config.projectErrorTextHighlight, highlights)
             lineRange[lines:size() + 1] = #line
+            line = line_cat_highlight(lines:size(), line, "error", config.projectErrorTextHighlight, highlights)
             line = line_cat_highlight(lines:size(), line, " ", config.projectTextHighlight, highlights)
             line = line_cat_highlight(
                 lines:size(),
@@ -1366,20 +1156,36 @@ local function generate_main_buffer_lines_new()
 end
 
 local function create_main_buffer()
-    lineCallback = {}
     lineRange = {}
-    lineRoots = {}
 
-    local buf = vim.api.nvim_create_buf(false, true)
+    local buf
+    local setBufOptions = false
+
+    if mavenBuf == nil then
+        buf = vim.api.nvim_create_buf(false, true)
+        setBufOptions = true
+    else
+        buf = mavenBuf
+    end
 
     -- local lines, highlights = generate_main_buffer_lines()
     local lines, highlights = generate_main_buffer_lines_new()
 
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines:values())
+    vim.api.nvim_set_option_value("modifiable", true, {
+        buf = buf,
+    })
 
-    set_main_buffer_options(buf)
-    set_main_buffer_keymaps(buf)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines:values())
     set_main_buffer_highlights(buf, highlights)
+
+    vim.api.nvim_set_option_value("modifiable", false, {
+        buf = buf,
+    })
+
+    if setBufOptions then
+        set_main_buffer_options(buf)
+        set_main_buffer_keymaps(buf)
+    end
 
     return buf
 end
@@ -1504,28 +1310,28 @@ local function initialize_autocmds()
                         end
                     end
 
-                    if javaFilesMap[bufName] ~= nil then
-                        for _, entry in ipairs(javaFilesMap[bufName].entries) do
+                    if fileToEntriesMap[bufName] ~= nil then
+                        for _, entry in ipairs(fileToEntriesMap[bufName].entries) do
                             table.insert(restoreEntries, { entry = entry, value = entry.expanded })
                             entry.expanded = true
                         end
 
-                        update_main_buffer(1)
+                        update_main_buffer()
 
-                        vim.api.nvim_win_set_cursor(mavenWin, { javaFilesMap[bufName].line, 1 })
+                        vim.api.nvim_win_set_cursor(mavenWin, { fileToEntriesMap[bufName].line, 1 })
                     end
                 end
             end,
         })
     )
 
-    -- if config.autoRefreshProjectFiles then
-    --     projectFilesUpdateTimer = vim.uv.new_timer()
-    --
-    --     if projectFilesUpdateTimer ~= nil then
-    --         projectFilesUpdateTimer:start(0, 10000, vim.schedule_wrap(MavenToolsMainWindow.refresh_files))
-    --     end
-    -- end
+    if config.autoRefreshProjectFiles then
+        projectFilesUpdateTimer = vim.uv.new_timer()
+
+        if projectFilesUpdateTimer ~= nil then
+            projectFilesUpdateTimer:start(0, 10000, mavenImporterNew.refresh_projects_files)
+        end
+    end
 end
 
 function MavenToolsMainWindow.show_main_window()
@@ -1547,7 +1353,6 @@ local function init()
 
     if cwd ~= nil then
         vim.schedule(function()
-            -- mavenImporter.process_pom_files(cwd, update_main_buffer)
             mavenImporterNew.update(cwd, update_main_buffer)
         end)
     end
@@ -1577,7 +1382,7 @@ function MavenToolsMainWindow.toggle_item()
             elseif entryInfo ~= nil and entryInfo.expanded ~= nil then
                 entryInfo.expanded = not entryInfo.expanded
 
-                update_main_buffer(1)
+                update_main_buffer()
             end
         end)
     end
@@ -1585,28 +1390,6 @@ function MavenToolsMainWindow.toggle_item()
     if mavenWin ~= nil then
         vim.api.nvim_win_set_cursor(mavenWin, { line, col - 1 })
     end
-
-    -- local line = vim.fn.line(".")
-    -- local col = vim.fn.col(".")
-    --
-    -- local entry
-    --
-    -- for _, v in ipairs(lineRoots) do
-    --     if line >= v.first and line <= v.last then
-    --         entry = v.item
-    --         break
-    --     end
-    -- end
-    --
-    -- if type(lineCallback[line]) == "function" then
-    --     if lineCallback[line](entry) then
-    --         update_main_buffer()
-    --     end
-    --
-    --     if mavenWin ~= nil then
-    --         vim.api.nvim_win_set_cursor(mavenWin, { line, col - 1 })
-    --     end
-    -- end
 end
 
 function MavenToolsMainWindow.close_win()
@@ -1621,94 +1404,57 @@ function MavenToolsMainWindow.filter()
     update_main_buffer()
 end
 
----@return TreeEntry|nil
-local function get_current_entry()
+function MavenToolsMainWindow.run()
     local line = vim.fn.line(".")
 
-    for _, lineRoot in ipairs(lineRoots) do
-        if line >= lineRoot.first and line <= lineRoot.last then
-            return lineRoot.item
-        end
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo ~= nil then
+                local commands = {}
+
+                for _, command in ipairs(config.lifecycleCommands) do
+                    if defaultLifecycles[command] == nil then
+                        table.insert(commands, command)
+                    end
+                end
+
+                for command, _ in pairs(defaultLifecycles) do
+                    table.insert(commands, command)
+                end
+
+                for _, plugin in ipairs(projectInfo.plugins) do
+                    local pluginInfoStr = mavenImporterNew.info_to_str(plugin)
+
+                    for _, command in ipairs(mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands) do
+                        table.insert(
+                            commands,
+                            mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal .. ":" .. command
+                        )
+                    end
+                end
+
+                vim.ui.select(commands, {
+                    prompt = "Run (" .. projectInfo.name .. ")",
+                }, function(command)
+                    if command == nil then
+                        return
+                    end
+
+                    runner.run(
+                        { command = command },
+                        projectInfo.pomFile,
+                        console.console_reset,
+                        console.console_append
+                    )
+                end)
+            end
+        end)
     end
-end
-
----@param entry TreeEntry
----@param targets string[]|nil
----@param items string[]|nil
----@return string[], string[]
-local function get_entry_targets(entry, targets, items)
-    if targets == nil then
-        targets = {}
-    end
-
-    if items == nil then
-        items = {}
-    end
-
-    if entry.command ~= nil then
-        table.insert(targets, entry.command)
-        local text = ""
-
-        for _, textObj in pairs(entry.textObjs) do
-            text = text .. textObj.text
-        end
-
-        table.insert(items, text)
-    end
-
-    for _, child in pairs(entry.children) do
-        get_entry_targets(child, targets, items)
-    end
-
-    return targets, items
-end
-
----@param callback fun(entry:TreeEntry)
-local function select_target(callback)
-    local items = {}
-    local entries = {}
-
-    for info, project in pairs(mavenImporter.mavenEntries) do
-        table.insert(items, project.textObjs[2].text .. "(" .. info .. ")")
-        table.insert(entries, project)
-    end
-
-    vim.ui.select(items, {
-        prompt = "Select target project",
-    }, function(item, idx)
-        if idx ~= nil then
-            callback(entries[idx])
-        end
-    end)
-    return
-end
-
----@param entry TreeEntry|number|nil
-function MavenToolsMainWindow.run(entry)
-    if entry == nil then
-        entry = get_current_entry()
-    elseif type(entry) == "number" then
-        select_target(MavenToolsMainWindow.run)
-        return
-    end
-
-    if entry == nil then
-        return
-    end
-
-    local targets, items = get_entry_targets(entry)
-
-    vim.ui.select(items, {
-        prompt = "Run (" .. entry.textObjs[2].text .. ")",
-    }, function(item, idx)
-        ---TODO:
-        print(item, idx)
-    end)
 end
 
 ---TODO: move to utils
+---@param url string
 ---@param callback fun(err:any, content:string|nil):any
----@return any
 local function fetch_url(url, callback)
     local command
 
@@ -1897,11 +1643,11 @@ local function select_package_version(groupId, artifactId, callback, start)
     )
 end
 
----@param entry TreeEntry
+---@param projectInfo ProjectInfo
 ---@param dependency string
 ---@param callback fun(groupId:string, artifactId:string, version:string)
 ---@param start integer|nil
-local function select_package(entry, dependency, callback, start)
+local function select_package(projectInfo, dependency, callback, start)
     if start == nil then
         start = 0
     end
@@ -1929,7 +1675,7 @@ local function select_package(entry, dependency, callback, start)
             end
 
             vim.ui.select(items, {
-                prompt = "Add Dependency (" .. entry.textObjs[2].text .. ")",
+                prompt = "Add Dependency (" .. projectInfo.name .. ")",
             }, function(item, idx)
                 if item == nil or idx == nil then
                     return
@@ -1938,87 +1684,142 @@ local function select_package(entry, dependency, callback, start)
                 if idx <= count then
                     select_package_version(agPairs[item].g, agPairs[item].a, callback)
                 else
-                    select_package(entry, dependency, callback, current + requestRows)
+                    select_package(projectInfo, dependency, callback, current + requestRows)
                 end
             end)
         end
     )
 end
 
----@param entry TreeEntry|number|nil
-function MavenToolsMainWindow.add_dependency(entry)
-    if entry == nil then
-        entry = get_current_entry()
-    elseif type(entry) == "number" then
-        select_target(MavenToolsMainWindow.add_dependency)
+local function add_dependency_to_pom_file(pomFile, groupId, artifactId, version)
+    if pomFile == nil then
         return
     end
 
-    if entry == nil then
+    local file = io.open(pomFile, "r")
+
+    if not file then
         return
     end
 
-    local dependency = vim.fn.input("Search")
+    local xmlContent = file:read("*all")
 
-    if dependency == nil or dependency == "" then
-        return
+    file:close()
+
+    local newDependency = string.format(
+        "    <dependency>\n        <groupId>%s</groupId>\n        <artifactId>%s</artifactId>\n        <version>%s</version>\n    </dependency>\n",
+        groupId,
+        artifactId,
+        version
+    )
+
+    local subCount
+    xmlContent, subCount = xmlContent:gsub("(</dependencies>)", newDependency .. "%1", 1)
+
+    if subCount == 0 then
+        xmlContent, subCount = xmlContent:gsub(
+            "(</project>)",
+            "   <dependencies>\n" .. newDependency .. "    </dependencies>\n" .. "%1",
+            1
+        )
     end
 
-    select_package(entry, dependency, function(groupId, artifactId, version)
-        local pomFile = mavenImporter.mavenInfoPomFile[tostring(entry.info)]
-
-        if pomFile == nil then
-            return
-        end
-
-        local file = io.open(pomFile, "r")
+    if subCount == 1 then
+        file = io.open(pomFile, "w")
 
         if not file then
             return
         end
 
-        local xmlContent = file:read("*all")
-
+        file:write(xmlContent)
         file:close()
 
-        local newDependency = string.format(
-            "    <dependency>\n        <groupId>%s</groupId>\n        <artifactId>%s</artifactId>\n        <version>%s</version>\n    </dependency>\n",
-            groupId,
-            artifactId,
-            version
-        )
-
-        local subCount
-        xmlContent, subCount = xmlContent:gsub("(</dependencies>)", newDependency .. "%1", 1)
-
-        if subCount == 0 then
-            xmlContent, subCount = xmlContent:gsub(
-                "(</project>)",
-                "   <dependencies>\n" .. newDependency .. "    </dependencies>\n" .. "%1",
-                1
-            )
-        end
-
-        if subCount == 1 then
-            file = io.open(pomFile, "w")
-
-            if not file then
-                return
-            end
-
-            file:write(xmlContent)
-            file:close()
-
-            MavenToolsMainWindow.open_file(pomFile)
-            MavenToolsMainWindow.refresh_entry()
-        end
-    end)
+        MavenToolsMainWindow.open_file(pomFile)
+        MavenToolsMainWindow.refresh_entry()
+    end
 end
 
-function MavenToolsMainWindow.add_local_dependency()
-    local entry = get_current_entry()
+function MavenToolsMainWindow.keybinds_hint()
+    local buf = vim.api.nvim_create_buf(false, true)
 
-    if entry == nil then
+    local lines = {}
+    local maxLineLen = 0
+    ---@type string[]
+    local linesLeft = {}
+    local maxLineLeft = 0
+    local linesRight = {}
+    local maxLineRight = 0
+    local linesCount = 0
+
+    for k, v in pairs(MavenToolsMainWindow.keymap) do
+        table.insert(linesLeft, k)
+        maxLineLeft = math.max(maxLineLeft, #k)
+
+        local lineRight = ""
+        for _, key in ipairs(v) do
+            lineRight = lineRight .. key .. "  "
+        end
+
+        lineRight = lineRight:gsub("..$", "")
+        table.insert(linesRight, lineRight)
+        maxLineRight = math.max(maxLineRight, #lineRight)
+    end
+
+    for i, leftLine in ipairs(linesLeft) do
+        lines[i] = string.rep(" ", maxLineLeft - #leftLine + 1)
+            .. leftLine
+            .. " : "
+            .. linesRight[i]
+            .. string.rep(" ", maxLineRight - #linesRight[i] + 1)
+        maxLineLen = math.max(maxLineLen, #lines[i])
+        linesCount = i
+    end
+
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    local win = vim.api.nvim_open_win(buf, true, {
+        relative = "cursor",
+        row = 1,
+        col = 1,
+        width = maxLineLen,
+        height = linesCount,
+        style = "minimal",
+        border = "rounded",
+    })
+
+    vim.api.nvim_buf_set_keymap(buf, "n", "q", "<cmd>quit<cr>", {
+        noremap = true,
+        silent = true,
+    })
+
+    vim.api.nvim_set_option_value("number", false, {
+        win = win,
+    })
+
+    vim.api.nvim_set_option_value("rnu", false, {
+        win = win,
+    })
+
+    vim.api.nvim_set_option_value("spell", false, {
+        win = win,
+    })
+
+    vim.api.nvim_set_option_value("buftype", "nofile", {
+        buf = buf,
+    })
+
+    vim.api.nvim_set_option_value("swapfile", false, {
+        buf = buf,
+    })
+
+    vim.api.nvim_set_option_value("modifiable", false, {
+        buf = buf,
+    })
+end
+
+---@param projectInfo ProjectInfo
+function MavenToolsMainWindow.add_dependency_new(projectInfo)
+    if projectInfo == nil then
         return
     end
 
@@ -2028,105 +1829,130 @@ function MavenToolsMainWindow.add_local_dependency()
         return
     end
 
-    local items = {}
-
-    for mavenInfo, projectEntry in pairs(mavenImporter.mavenEntries) do
-        if mavenInfo:lower():match(dependency) then
-            table.insert(items, mavenInfo)
-        else
-            if projectEntry.children[5] ~= nil then
-                for _, dir in ipairs(projectEntry.children[5].children) do
-                    if dir.textObjs[2] ~= nil then
-                        if dir.textObjs[2].text:lower():match(dependency) then
-                            table.insert(items, mavenInfo)
-                            break
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    vim.ui.select(items, {
-        prompt = "Add Local Dependency (" .. entry.textObjs[2].text .. ")",
-    }, function(item, idx)
-        ---TODO:
-        print(item, idx)
+    select_package(projectInfo, dependency, function(groupId, artifactId, version)
+        add_dependency_to_pom_file(projectInfo.pomFile, groupId, artifactId, version)
     end)
 end
 
-function MavenToolsMainWindow.download_sources()
-    local entry = get_current_entry()
+function MavenToolsMainWindow.add_dependency()
+    local line = vim.fn.line(".")
 
-    if entry == nil then
-        return
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo ~= nil then
+                MavenToolsMainWindow.add_dependency_new(projectInfo)
+            end
+        end)
     end
+end
 
-    runner.run(
-        { command = "dependency:sources" },
-        mavenImporter.mavenInfoPomFile[tostring(entry.info)],
-        console.console_reset,
-        console.console_append
-    )
+function MavenToolsMainWindow.add_local_dependency()
+    local line = vim.fn.line(".")
+
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo ~= nil then
+                local projectInfoStr = mavenImporterNew.info_to_str(projectInfo.info)
+                local items = {}
+
+                for mavenInfo, _ in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
+                    if mavenInfo ~= projectInfoStr then
+                        table.insert(items, mavenInfo)
+                    end
+                end
+
+                vim.ui.select(items, {
+                    prompt = "Add Local Dependency (" .. projectInfo.name .. ")",
+                }, function(item, _)
+                    if item ~= nil then
+                        local dependencyInfo = mavenImporterNew.mavenInfoToProjectInfoMap[item].info
+                        add_dependency_to_pom_file(
+                            projectInfo.pomFile,
+                            dependencyInfo.groupId,
+                            dependencyInfo.artifactId,
+                            dependencyInfo.version
+                        )
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+function MavenToolsMainWindow.download_sources()
+    local line = vim.fn.line(".")
+
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo == nil or projectInfo.pomFile == nil then
+                return
+            end
+
+            runner.run(
+                { command = "dependency:sources" },
+                projectInfo.pomFile,
+                console.console_reset,
+                console.console_append
+            )
+        end)
+    end
 end
 
 function MavenToolsMainWindow.download_documentation()
-    local entry = get_current_entry()
+    local line = vim.fn.line(".")
 
-    if entry == nil then
-        return
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo == nil or projectInfo.pomFile == nil then
+                return
+            end
+
+            runner.run(
+                { command = "dependency:resolve -Dclassifier=javadoc" },
+                projectInfo.pomFile,
+                console.console_reset,
+                console.console_append
+            )
+        end)
     end
-
-    runner.run(
-        { command = "dependency:resolve -Dclassifier=javadoc" },
-        mavenImporter.mavenInfoPomFile[tostring(entry.info)],
-        console.console_reset,
-        console.console_append
-    )
 end
 
 function MavenToolsMainWindow.download_sources_and_documentation()
-    local entry = get_current_entry()
+    local line = vim.fn.line(".")
 
-    if entry == nil then
-        return
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo == nil or projectInfo.pomFile == nil then
+                return
+            end
+
+            runner.run(
+                { command = "dependency:sources dependency:resolve -Dclassifier=javadoc" },
+                projectInfo.pomFile,
+                console.console_reset,
+                console.console_append
+            )
+        end)
     end
-
-    runner.run(
-        { command = "dependency:sources dependency:resolve -Dclassifier=javadoc" },
-        mavenImporter.mavenInfoPomFile[tostring(entry.info)],
-        console.console_reset,
-        console.console_append
-    )
 end
 
 function MavenToolsMainWindow.toggle_hide()
-    local entry = get_current_entry()
+    local line = vim.fn.line(".")
 
-    if entry == nil then
-        return
-    end
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo ~= nil and projectInfo.info ~= nil then
+                local infoStr = mavenImporterNew.info_to_str(projectInfo.info)
+                if entriesInfo.projects[infoStr].hide == nil then
+                    entriesInfo.projects[infoStr].hide = true
+                else
+                    entriesInfo.projects[infoStr].hide = not entriesInfo.projects[infoStr].hide
+                end
 
-    if entry.hide then
-        entry.hide = nil
-
-        local ignore = {}
-
-        for _, v in ipairs(config.ignoreFiles) do
-            if v ~= mavenImporter.mavenInfoPomFile[tostring(entry.info)] then
-                table.insert(ignore, v)
+                update_main_buffer()
             end
-
-            ---TODO: investigate why this is here?
-            config.ignoreFiles = ignore
-        end
-    else
-        entry.hide = true
-
-        table.insert(config.ignoreFiles, mavenImporter.mavenInfoPomFile[tostring(entry.info)])
+        end)
     end
-
-    update_main_buffer()
 end
 
 function MavenToolsMainWindow.show_all()
@@ -2137,37 +1963,61 @@ end
 
 function MavenToolsMainWindow.refresh_entry()
     local line = vim.fn.line(".")
+
     if type(lineCallbackNew[line]) == "function" then
         lineCallbackNew[line](function(_, _, projectInfo, args)
             if projectInfo ~= nil then
-                mavenImporterNew.refresh_prject(projectInfo)
+                mavenImporterNew.refresh_project(projectInfo)
             elseif args ~= nil and args.file ~= nil then
-                mavenImporterNew.refresh_prject(args.file)
+                mavenImporterNew.refresh_project(args.file)
             end
         end)
     end
 end
 
 function MavenToolsMainWindow.show_effective_pom()
-    local entry = get_current_entry()
+    local line = vim.fn.line(".")
 
-    if entry == nil then
-        return
+    if lineCallbackNew[line] then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo ~= nil and projectInfo.pomFile ~= nil then
+                local taskMgr = utils.Task_Mgr()
+
+                vim.notify("Fetching effective pom for project: " .. projectInfo.name)
+
+                taskMgr:run(
+                    mavenConfig.importer_pipe_cmd(projectInfo.pomFile, { "help:effective-pom" }),
+                    function(effectivePom)
+                        local effectivePomStr = mavenImporterNew.extract_effective_pom(effectivePom)
+
+                        if effectivePomStr == nil then
+                            return
+                        end
+
+                        local lines = {}
+
+                        for lineStr in effectivePomStr:gmatch("[^\r\n]+") do
+                            table.insert(lines, lineStr)
+                        end
+
+                        vim.schedule(function()
+                            local editorWin = utils.get_editor_window()
+
+                            if editorWin ~= nil then
+                                local buf = vim.api.nvim_create_buf(false, true)
+
+                                vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+                                vim.api.nvim_win_set_buf(editorWin, buf)
+                                vim.api.nvim_buf_call(buf, function()
+                                    vim.api.nvim_command("setfiletype xml")
+                                end)
+                            end
+                        end)
+                    end
+                )
+            end
+        end)
     end
-
-    MavenToolsImporter.effective_pom(entry, function(effectivePom)
-        local editorWin = utils.get_editor_window()
-
-        if editorWin ~= nil then
-            local buf = vim.api.nvim_create_buf(false, true)
-
-            vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.split(effectivePom, "\n"))
-            vim.api.nvim_win_set_buf(editorWin, buf)
-            vim.api.nvim_buf_call(buf, function()
-                vim.api.nvim_command("setfiletype xml")
-            end)
-        end
-    end)
 end
 
 function MavenToolsMainWindow.open_file(file)
@@ -2189,42 +2039,43 @@ function MavenToolsMainWindow.open_file(file)
 end
 
 function MavenToolsMainWindow.open_pom_file()
-    local entry = get_current_entry()
+    local line = vim.fn.line(".")
 
-    if entry == nil then
-        return
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, projectInfo, _)
+            if projectInfo ~= nil and projectInfo.pomFile ~= nil then
+                utils.open_file(projectInfo.pomFile)
+            end
+        end)
     end
-
-    local file = mavenImporter.mavenInfoPomFile[tostring(entry.info)] or entry.file
-
-    MavenToolsMainWindow.open_file(file)
 end
 
 function MavenToolsMainWindow.show_error()
-    local entry = get_current_entry()
+    local line = vim.fn.line(".")
 
-    if entry == nil or entry.file == nil or mavenImporter.pomFileError[entry.file] == nil then
-        return
+    if lineCallbackNew[line] ~= nil then
+        lineCallbackNew[line](function(_, _, _, args)
+            if args.error == nil then
+                return
+            end
+
+            local errorMsg = vim.fn.split(args.error, "\n")
+
+            local buf = vim.api.nvim_create_buf(false, true)
+
+            vim.api.nvim_buf_set_lines(buf, 0, -1, false, errorMsg)
+
+            local win = vim.api.nvim_open_win(buf, true, {
+                relative = "cursor",
+                row = 1,
+                col = 1,
+                width = vim.api.nvim_get_option_value("columns", {}) - 10,
+                height = vim.api.nvim_get_option_value("lines", {}) - 12,
+                style = "minimal",
+                border = "rounded",
+            })
+        end)
     end
-
-    local errorMsg = vim.fn.split(mavenImporter.pomFileError[entry.file], "\n")
-
-    local buf = vim.api.nvim_create_buf(false, true)
-
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, errorMsg)
-
-    -- local editor_win = utils.get_editor_window()
-    -- vim.api.width
-
-    local win = vim.api.nvim_open_win(buf, true, {
-        relative = "cursor",
-        row = 1,
-        col = 1,
-        width = vim.api.nvim_get_option_value("columns", {}) - 4,
-        height = 10,
-        style = "minimal",
-        border = "rounded",
-    })
 end
 
 function MavenToolsMainWindow.refresh_files()
@@ -2232,6 +2083,14 @@ function MavenToolsMainWindow.refresh_files()
     update_main_buffer()
 end
 
-function MavenToolsMainWindow.refresh_all() end
+function MavenToolsMainWindow.add_new_project()
+    local pomFile = vim.fn.input("Path to pom.xml file")
+
+    mavenImporterNew.add_new_project(pomFile)
+end
+
+function MavenToolsMainWindow.refresh_all()
+---TODO: implement
+end
 
 return MavenToolsMainWindow

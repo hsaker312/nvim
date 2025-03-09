@@ -572,7 +572,9 @@ function MavenToolsUtils.Queue()
     return queue
 end
 
-local function is_ignored(file)
+---@param file string
+---@return boolean
+function MavenToolsUtils.is_ignored(file)
     for _, ignore_file in ipairs(config.ignoreFiles) do
         if tostring(file):match(ignore_file) then
             return true
@@ -606,7 +608,7 @@ MavenToolsUtils.find_pom_files = function(directory)
         end
 
         for _, file in ipairs(files) do
-            if file:filename() == "pom.xml" and not is_ignored(file) then
+            if file:filename() == "pom.xml" and not MavenToolsUtils.is_ignored(file) then
                 pom_files:append(tostring(file))
             elseif config.recursivePomSearch and file:is_directory() then
                 dirs:push(file)
@@ -716,8 +718,20 @@ function MavenToolsUtils.Task_Mgr()
     end
 
     function task_manager:trigger_idle_callback()
-        if type(on_idle) == "function" then
-            on_idle()
+        local handle
+
+        handle = vim.uv.new_async(function()
+            if type(on_idle) == "function" then
+                on_idle()
+            end
+
+            if handle ~= nil then
+                handle:close()
+            end
+        end)
+
+        if handle ~= nil then
+            handle:send()
         end
     end
 

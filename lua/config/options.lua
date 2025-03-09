@@ -16,6 +16,8 @@ vim.g.snacks_animate = false
 vim.opt.scrolloff = 10
 vim.opt.mousemoveevent = true
 
+vim.opt.clipboard = 'unnamedplus'
+
 vim.diagnostic.config({
     virtual_text = false,
 })

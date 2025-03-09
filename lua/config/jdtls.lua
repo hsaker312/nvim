@@ -262,7 +262,6 @@ local function get_root()
     return root_dir
 end
 
-print( vim.inspect(get_root()))
 local launcher, os_config, lombok = get_jdtls()
 local workspace_dir = get_workspace()
 local bundles = get_bundles()
@@ -317,7 +316,7 @@ local function setup_jdtls()
         "-Dlog.level=ALL",
         -- "-Djava.class.path=" .. "C:/Users/saker.helmy/msd/headless/components/headless/MqttCommon/src/main/java",
         -- "-Dbranch=headless",
-        "-Xmx1g",
+        "-Xmx8G",
         "--add-modules=ALL-SYSTEM",
         "--add-opens",
         "java.base/java.util=ALL-UNNAMED",
@@ -402,6 +401,15 @@ local function setup_jdtls()
                     starThreshold = 9999,
                     staticThreshold = 9999,
                 },
+                exclude = {
+                    "**/node_modules/**",
+                    "**/build/**",
+                    "**/target/**",
+                },
+                include = {
+                    "src/main/java/**",
+                    "src/test/java/**",
+                },
             },
             -- How should different pieces of code be generated?
             codeGeneration = {
@@ -421,9 +429,12 @@ local function setup_jdtls()
                 updateBuildConfiguration = "interactive",
                 runtimes = runtimes,
             },
+            references = {
+                includeDecompiledSources = true,
+            },
             -- enable code lens in the lsp
             referencesCodeLens = {
-                enabled = true,
+                enabled = false,
             },
             -- enable inlay hints for parameter names,
             inlayHints = {
