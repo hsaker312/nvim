@@ -97,6 +97,8 @@ local projectFilesUpdateTimer = nil
 ---@type integer
 local requestRows = 25
 
+local initialized = false
+
 local entriesInfo = {
     ---@type table<string, EntryInfo>
     projects = {},
@@ -279,7 +281,7 @@ local function create_header(lines, highlights)
             highlight = "@comment",
             lineNum = lines:size(),
             colBegin = #header,
-            colEnd = #header + #showAllComment
+            colEnd = #header + #showAllComment,
         })
 
         header = header .. showAllComment
@@ -1325,13 +1327,13 @@ local function initialize_autocmds()
         })
     )
 
-    if config.autoRefreshProjectFiles then
-        projectFilesUpdateTimer = vim.uv.new_timer()
-
-        if projectFilesUpdateTimer ~= nil then
-            projectFilesUpdateTimer:start(0, 10000, mavenImporterNew.refresh_projects_files)
-        end
-    end
+    -- if config.autoRefreshProjectFiles then
+    --     projectFilesUpdateTimer = vim.uv.new_timer()
+    --
+    --     if projectFilesUpdateTimer ~= nil then
+    --         projectFilesUpdateTimer:start(0, 10000, mavenImporterNew.refresh_projects_files)
+    --     end
+    -- end
 end
 
 function MavenToolsMainWindow.show_main_window()
@@ -1343,7 +1345,16 @@ function MavenToolsMainWindow.show_main_window()
     end
 end
 
+function MavenToolsMainWindow.hide_main_win()
+    if mavenWin ~= nil then
+        vim.api.nvim_win_close(mavenWin, true)
+    end
+end
+
 local function init()
+    initialized = true
+    vim.notify("Initializing Maven Tools")
+
     local cwd = config.cwd
     vim.api.nvim_set_hl(0, "MavenToolsContainerIcon", { fg = "#54c6f7" })
     vim.api.nvim_set_hl(0, "MavenToolsProjectIcon", { fg = "#548AF7" })
@@ -1363,10 +1374,22 @@ local function init()
     initialize_autocmds()
 end
 
-function MavenToolsMainWindow:start()
-    MavenToolsMainWindow.show_main_window()
+function MavenToolsMainWindow.init()
+    if not initialized then
+        init()
+    end
+end
 
-    init()
+function MavenToolsMainWindow:toggle_main_win()
+    if not initialized then
+        init()
+    end
+
+    if mavenWin == nil then
+        MavenToolsMainWindow.show_main_window()
+    else
+        MavenToolsMainWindow.hide_main_win()
+    end
 end
 
 function MavenToolsMainWindow.toggle_item()
@@ -1392,62 +1415,87 @@ function MavenToolsMainWindow.toggle_item()
     end
 end
 
-function MavenToolsMainWindow.close_win()
-    if mavenWin ~= nil then
-        vim.api.nvim_win_close(mavenWin, true)
-    end
-end
-
 function MavenToolsMainWindow.filter()
     filter = vim.fn.input("Filter: " .. filter)
 
     update_main_buffer()
 end
 
-function MavenToolsMainWindow.run()
-    local line = vim.fn.line(".")
+---@param callback fun(projectInfo: ProjectInfo):nil
+local function select_project(callback)
+    local items = {}
+    local projects = {}
 
-    if lineCallbackNew[line] ~= nil then
-        lineCallbackNew[line](function(_, _, projectInfo, _)
+    for _, pomFile in ipairs(mavenImporterNew.pomFiles) do
+        if mavenImporterNew.pomFileToMavenInfoMap[pomFile] ~= nil then
+            local mavenInfo = mavenImporterNew.pomFileToMavenInfoMap[pomFile].info
+            local infoStr = mavenImporterNew.info_to_str(mavenInfo)
+            local projectInfo = mavenImporterNew.mavenInfoToProjectInfoMap[infoStr]
             if projectInfo ~= nil then
-                local commands = {}
+                table.insert(items, projectInfo.name)
+                table.insert(projects, projectInfo)
+            end
+        end
+    end
 
-                for _, command in ipairs(config.lifecycleCommands) do
-                    if defaultLifecycles[command] == nil then
-                        table.insert(commands, command)
-                    end
-                end
+    vim.ui.select(items, {
+        prompt = "Select Project",
+    }, function(_, idx)
+        if idx ~= nil then
+            callback(projects[idx])
+        end
+    end)
+end
 
-                for command, _ in pairs(defaultLifecycles) do
+function MavenToolsMainWindow.run(cmd)
+    local callback = function(_, _, projectInfo, _)
+        if projectInfo ~= nil then
+            local commands = {}
+
+            for _, command in ipairs(config.lifecycleCommands) do
+                if defaultLifecycles[command] == nil then
                     table.insert(commands, command)
                 end
+            end
 
-                for _, plugin in ipairs(projectInfo.plugins) do
-                    local pluginInfoStr = mavenImporterNew.info_to_str(plugin)
+            for command, _ in pairs(defaultLifecycles) do
+                table.insert(commands, command)
+            end
 
-                    for _, command in ipairs(mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands) do
-                        table.insert(
-                            commands,
-                            mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal .. ":" .. command
-                        )
-                    end
+            for _, plugin in ipairs(projectInfo.plugins) do
+                local pluginInfoStr = mavenImporterNew.info_to_str(plugin)
+
+                for _, command in ipairs(mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].commands) do
+                    table.insert(commands, mavenImporterNew.pluginInfoToPluginMap[pluginInfoStr].goal .. ":" .. command)
+                end
+            end
+
+            vim.ui.select(commands, {
+                prompt = "Run (" .. projectInfo.name .. ")",
+            }, function(command)
+                if command == nil then
+                    return
                 end
 
-                vim.ui.select(commands, {
-                    prompt = "Run (" .. projectInfo.name .. ")",
-                }, function(command)
-                    if command == nil then
-                        return
-                    end
+                runner.run({ command = command }, projectInfo.pomFile, console.console_reset, console.console_append)
+            end)
+        end
+    end
 
-                    runner.run(
-                        { command = command },
-                        projectInfo.pomFile,
-                        console.console_reset,
-                        console.console_append
-                    )
-                end)
-            end
+    if cmd == nil then
+        local line = vim.fn.line(".")
+
+        if lineCallbackNew[line] ~= nil then
+            lineCallbackNew[line](callback)
+        end
+    else
+        if not initialized then
+            init()
+            return
+        end
+
+        select_project(function(projectInfo)
+            callback(nil, nil, projectInfo)
         end)
     end
 end
@@ -1834,47 +1882,73 @@ function MavenToolsMainWindow.add_dependency_new(projectInfo)
     end)
 end
 
-function MavenToolsMainWindow.add_dependency()
-    local line = vim.fn.line(".")
+function MavenToolsMainWindow.add_dependency(cmd)
+    local callback = function(_, _, projectInfo, _)
+        if projectInfo ~= nil then
+            MavenToolsMainWindow.add_dependency_new(projectInfo)
+        end
+    end
 
-    if lineCallbackNew[line] ~= nil then
-        lineCallbackNew[line](function(_, _, projectInfo, _)
-            if projectInfo ~= nil then
-                MavenToolsMainWindow.add_dependency_new(projectInfo)
-            end
+    if cmd == nil then
+        local line = vim.fn.line(".")
+
+        if lineCallbackNew[line] ~= nil then
+            lineCallbackNew[line](callback)
+        end
+    else
+        if not initialized then
+            init()
+            return
+        end
+
+        select_project(function(projectInfo)
+            callback(nil, nil, projectInfo)
         end)
     end
 end
 
-function MavenToolsMainWindow.add_local_dependency()
-    local line = vim.fn.line(".")
+function MavenToolsMainWindow.add_local_dependency(cmd)
+    local callback = function(_, _, projectInfo, _)
+        if projectInfo ~= nil then
+            local projectInfoStr = mavenImporterNew.info_to_str(projectInfo.info)
+            local items = {}
 
-    if lineCallbackNew[line] ~= nil then
-        lineCallbackNew[line](function(_, _, projectInfo, _)
-            if projectInfo ~= nil then
-                local projectInfoStr = mavenImporterNew.info_to_str(projectInfo.info)
-                local items = {}
-
-                for mavenInfo, _ in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
-                    if mavenInfo ~= projectInfoStr then
-                        table.insert(items, mavenInfo)
-                    end
+            for mavenInfo, _ in pairs(mavenImporterNew.mavenInfoToProjectInfoMap) do
+                if mavenInfo ~= projectInfoStr then
+                    table.insert(items, mavenInfo)
                 end
-
-                vim.ui.select(items, {
-                    prompt = "Add Local Dependency (" .. projectInfo.name .. ")",
-                }, function(item, _)
-                    if item ~= nil then
-                        local dependencyInfo = mavenImporterNew.mavenInfoToProjectInfoMap[item].info
-                        add_dependency_to_pom_file(
-                            projectInfo.pomFile,
-                            dependencyInfo.groupId,
-                            dependencyInfo.artifactId,
-                            dependencyInfo.version
-                        )
-                    end
-                end)
             end
+
+            vim.ui.select(items, {
+                prompt = "Add Local Dependency (" .. projectInfo.name .. ")",
+            }, function(item, _)
+                if item ~= nil then
+                    local dependencyInfo = mavenImporterNew.mavenInfoToProjectInfoMap[item].info
+                    add_dependency_to_pom_file(
+                        projectInfo.pomFile,
+                        dependencyInfo.groupId,
+                        dependencyInfo.artifactId,
+                        dependencyInfo.version
+                    )
+                end
+            end)
+        end
+    end
+
+    if cmd == nil then
+        local line = vim.fn.line(".")
+
+        if lineCallbackNew[line] ~= nil then
+            lineCallbackNew[line](callback)
+        end
+    else
+        if not initialized then
+            init()
+            return
+        end
+
+        select_project(function(projectInfo)
+            callback(nil, nil, projectInfo)
         end)
     end
 end
@@ -2090,7 +2164,7 @@ function MavenToolsMainWindow.add_new_project()
 end
 
 function MavenToolsMainWindow.refresh_all()
----TODO: implement
+    ---TODO: implement
 end
 
 return MavenToolsMainWindow
