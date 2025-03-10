@@ -11,8 +11,6 @@ if vim.g.vscode then
     if vscode ~= nil then
         vim.notify = vscode.notify
     end
-else
-    vim.notify = require("snacks").notify
 end
 
 vim.opt.incsearch = true
