@@ -178,7 +178,7 @@ end
 
 local key_action_map = {
     ["toggle_item"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".toggle_item()<CR>",
-    ["close_main_window"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".close_win()<CR>",
+    ["close_main_window"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".hide_main_win()<CR>",
     ["project_filter"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".filter()<CR>",
     ["run_command"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".run()<CR>",
     ["add_dependency"] = "<Cmd>lua require('" .. prefix .. "ui.main')" .. ".add_dependency()<CR>",
@@ -1327,13 +1327,13 @@ local function initialize_autocmds()
         })
     )
 
-    -- if config.autoRefreshProjectFiles then
-    --     projectFilesUpdateTimer = vim.uv.new_timer()
-    --
-    --     if projectFilesUpdateTimer ~= nil then
-    --         projectFilesUpdateTimer:start(0, 10000, mavenImporterNew.refresh_projects_files)
-    --     end
-    -- end
+    if config.autoRefreshProjectFiles then
+        projectFilesUpdateTimer = vim.uv.new_timer()
+
+        if projectFilesUpdateTimer ~= nil then
+            projectFilesUpdateTimer:start(0, 10000, mavenImporterNew.refresh_projects_files)
+        end
+    end
 end
 
 function MavenToolsMainWindow.show_main_window()
@@ -2153,8 +2153,7 @@ function MavenToolsMainWindow.show_error()
 end
 
 function MavenToolsMainWindow.refresh_files()
-    MavenToolsImporter.update_projects_files()
-    update_main_buffer()
+    mavenImporterNew.refresh_projects_files()
 end
 
 function MavenToolsMainWindow.add_new_project()

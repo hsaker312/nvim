@@ -195,4 +195,6 @@ if not vim.g.lite then
     end)
 
     require("maven-tools").setup()
+    vim.keymap.set("n", "<leader>mt", "<cmd>MavenToolsToggle<cr>")
+    vim.keymap.set("n", "<leader>mr", "<cmd>MavenToolsRun<cr>")
 end

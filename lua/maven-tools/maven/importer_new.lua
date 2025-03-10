@@ -501,7 +501,7 @@ local function start_resolve_maven_info_pom_file_task(pomFile, refreshProjectInf
         local pomParser = xml2lua.parser(pomXml)
         local success = pcall(pomParser.parse, pomParser, pomFileContent)
 
-        if not success then
+        if not success or pomXml.root == nil or type(pomXml.root.project) ~= "table" then
             set_project_entry_to_error_state(pomFile.str, refreshProjectInfo, "Failed to parse xml file")
             return
         end

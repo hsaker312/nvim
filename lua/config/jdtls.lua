@@ -241,8 +241,8 @@ local function get_root()
 
         if json.maven ~= nil then
             maven = json.maven
-            maven.userSettings = home .. maven.userSettings
-            maven.localRepository = home .. maven.localRepository
+            maven.userSettings = maven.userSettings
+            maven.localRepository = maven.localRepository
         end
     end
 
