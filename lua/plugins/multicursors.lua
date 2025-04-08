@@ -5,6 +5,6 @@ return {
     dependencies = {
         "smoka7/hydra.nvim",
     },
-    opts = {},
-    cmd = { "MCstart", "MCvisual", "MCclear", "MCpattern", "MCvisualPattern", "MCunderCursor" },
+    -- opts = {},
+    -- cmd = { "MCstart", "MCvisual", "MCclear", "MCpattern", "MCvisualPattern", "MCunderCursor" },
 }
