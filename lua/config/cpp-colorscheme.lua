@@ -46,6 +46,7 @@ vim.api.nvim_set_hl(0, "@lsp.type.typeParameter.cpp", { fg = "#bb63c7", italic =
 
 vim.api.nvim_set_hl(0, "@lsp.type.variable.cpp", { fg = "#d99df2" })
 vim.api.nvim_set_hl(0, "@lsp.type.property.cpp", { fg = "#a333cf" })
+vim.api.nvim_set_hl(0, "@property.cpp", { fg = "#a333cf" })
 vim.api.nvim_set_hl(0, "@lsp.type.parameter.cpp", { fg = "#c233cf" })
 
 vim.api.nvim_set_hl(0, "@function.cpp", { fg = "#3fc6f3" })

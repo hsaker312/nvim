@@ -26,7 +26,6 @@ vim.opt.smartindent = true
 vim.opt.nu = true
 vim.opt.rnu = true --disable relative line number
 
-
 vim.opt.spelllang = "en_us"
 vim.opt.spell = true
 
@@ -40,8 +39,7 @@ vim.opt.undofile = true
 if not vim.g.lite then
     vim.api.nvim_create_user_command("EnableCMake", require("config.cmake").setup, {})
 
-    local codelldb_path = require("mason-registry").get_package("codelldb"):get_install_path() .. "/extension"
-    local codelldb_bin = codelldb_path .. "/adapter/codelldb"
+    local codelldb_bin = vim.env.HOME .. (vim.g.windows and "AppData/Local/nvim-data" or "/.local/share/nvim") .. "/mason/bin/codelldb"
 
     local dap = require("dap")
 
@@ -179,8 +177,6 @@ if not vim.g.lite then
         end
     end
 end
-
-
 
 if not vim.g.lite then
     vim.schedule(function()
