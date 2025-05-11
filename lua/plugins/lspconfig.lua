@@ -27,9 +27,10 @@ return {
     config = function()
         require("mason").setup()
         require("mason-lspconfig").setup({
-            -- Install these LSPs automatically
+            automatic_enable = {
+                exclude = { "jdtls", "clangd", "lua_ls" }
+            },
             ensure_installed = {
-                -- "clangd",
                 "jdtls",
                 "jsonls",
                 "pyright",
@@ -68,13 +69,12 @@ return {
         local capabilities = vim.lsp.protocol.make_client_capabilities()
         capabilities.textDocument.completion.completionItem.snippetSupport = true
 
-        require("lspconfig").jsonls.setup({})
-        require("lspconfig").bashls.setup({})
-        require("lspconfig").pyright.setup({})
-        require("lspconfig").cmake.setup({})
+        -- require("lspconfig").jsonls.setup({})
+        -- require("lspconfig").bashls.setup({})
+        -- require("lspconfig").pyright.setup({})
+        -- require("lspconfig").cmake.setup({})
 
         local lspconfig = require("lspconfig")
-        -- local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
         local lsp_capabilities = require("blink-cmp").get_lsp_capabilities({}, true)
         local lsp_attach = function(client, bufnr)
             -- Create your keybindings here...
