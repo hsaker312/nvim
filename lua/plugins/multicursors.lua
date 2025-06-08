@@ -6,5 +6,5 @@ return {
         "smoka7/hydra.nvim",
     },
     -- opts = {},
-    -- cmd = { "MCstart", "MCvisual", "MCclear", "MCpattern", "MCvisualPattern", "MCunderCursor" },
+    cmd = { "MCstart", "MCvisual", "MCclear", "MCpattern", "MCvisualPattern", "MCunderCursor" },
 }

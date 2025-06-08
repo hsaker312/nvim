@@ -724,13 +724,14 @@ local multi_cursor = function(mouse)
     end
 end
 
-vim.keymap.set("n", "<leader>n", function()
-    multi_cursor(false)
-end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
-
-vim.keymap.set("n", "<A-MiddleMouse>", function()
-    multi_cursor(true)
-end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
+--TODO: find another multi_cursor plugin
+-- vim.keymap.set("n", "<leader>n", function()
+--     multi_cursor(false)
+-- end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
+--
+-- vim.keymap.set("n", "<A-MiddleMouse>", function()
+--     multi_cursor(true)
+-- end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
 
 vim.keymap.set("n", "<esc>", function()
     MultiCursor = false

@@ -179,23 +179,24 @@ return {
                     cond = function()
                         return require("cmake-tools").get_configure_preset() ~= nil
                     end,
+                    separator = { right = "" },
                     on_click = function()
                         vim.api.nvim_command("CMakeSelectBuildTarget")
                     end,
                 },
-                {
-                    function()
-                        return "󱓟 " .. require("cmake-tools").get_launch_target()
-                    end,
-                    separator = { right = "" },
-                    color = { fg = "#FFFFFF", bg = "#6e4359", gui = "bold" },
-                    cond = function()
-                        return require("cmake-tools").get_configure_preset() ~= nil
-                    end,
-                    on_click = function()
-                        vim.api.nvim_command("CMakeSelectLaunchTarget")
-                    end,
-                },
+                -- {
+                --     function()
+                --         return "󱓟 " .. require("cmake-tools").get_launch_target()
+                --     end,
+                --     separator = { right = "" },
+                --     color = { fg = "#FFFFFF", bg = "#6e4359", gui = "bold" },
+                --     cond = function()
+                --         return require("cmake-tools").get_configure_preset() ~= nil
+                --     end,
+                --     on_click = function()
+                --         vim.api.nvim_command("CMakeSelectLaunchTarget")
+                --     end,
+                -- },
                 {
                     function()
                         return " "
