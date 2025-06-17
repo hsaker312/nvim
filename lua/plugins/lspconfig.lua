@@ -73,6 +73,7 @@ return {
         -- require("lspconfig").bashls.setup({})
         -- require("lspconfig").pyright.setup({})
         require("lspconfig").cmake.setup({})
+        require("lspconfig").nimls.setup({})
 
         local lspconfig = require("lspconfig")
         local lsp_capabilities = require("blink-cmp").get_lsp_capabilities({}, true)
