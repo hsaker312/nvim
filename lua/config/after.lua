@@ -156,7 +156,7 @@ if not vim.g.lite then
                 return vim.api.nvim_buf_get_name(0)
             end, -- This configuration will launch the current file if used.
             pythonPath = function()
-                return require("venv-selector").get_active_path()
+                return require("venv-selector").python()
             end,
         },
     }
