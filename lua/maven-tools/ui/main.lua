@@ -2140,7 +2140,7 @@ function MavenToolsMainWindow.show_error()
             vim.api.nvim_buf_set_lines(buf, 0, -1, false, errorMsg)
 
             local win = vim.api.nvim_open_win(buf, true, {
-                relative = "cursor",
+                relative = "editor",
                 row = 1,
                 col = 1,
                 width = vim.api.nvim_get_option_value("columns", {}) - 10,

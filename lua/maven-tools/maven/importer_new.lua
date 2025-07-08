@@ -789,6 +789,8 @@ local function idle_callback_init()
                 update_callback()
 
                 write_project_cache_file()
+
+                vim.notify("Maven Tools Ready")
             end
         end)
 

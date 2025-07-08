@@ -3,10 +3,9 @@ local jdtls = require("jdtls")
 local function get_jdtls()
     -- Get the Mason Registry to gain access to downloaded binaries
     local mason_registry = require("mason-registry")
-    -- Find the JDTLS package in the Mason Registry
-    local jdtls = mason_registry.get_package("jdtls")
     -- Find the full path to the directory where Mason has downloaded the JDTLS binaries
-    local jdtls_path = jdtls:get_install_path()
+    local jdtls_path = vim.g.get_mason_package_path("jdtls")
+    vim.notify(jdtls_path)
     -- Obtain the path to the jar which runs the language server
     local launcher = vim.fn.glob(jdtls_path .. "/plugins/org.eclipse.equinox.launcher_*.jar")
     -- Obtain the path to configuration files for your specific operating system
@@ -25,21 +24,17 @@ end
 local function get_bundles()
     -- Get the Mason Registry to gain access to downloaded binaries
     local mason_registry = require("mason-registry")
-    -- Find the Java Debug Adapter package in the Mason Registry
-    local java_debug = mason_registry.get_package("java-debug-adapter")
     -- Obtain the full path to the directory where Mason has downloaded the Java Debug Adapter binaries
-    local java_debug_path = java_debug:get_install_path()
+    local java_debug_path = vim.g.get_mason_package_path("java-debug-adapter")
 
     local bundles = {
-        vim.fn.glob(java_debug_path .. "/extension/server/com.microsoft.java.debug.plugin-*.jar", 1),
+        vim.fn.glob(java_debug_path .. "/extension/server/com.microsoft.java.debug.plugin-*.jar", true),
     }
 
-    -- Find the Java Test package in the Mason Registry
-    local java_test = mason_registry.get_package("java-test")
     -- Obtain the full path to the directory where Mason has downloaded the Java Test binaries
-    local java_test_path = java_test:get_install_path()
+    local java_test_path = vim.g.get_mason_package_path("java-test")
     -- Add all of the Jars for running tests in debug mode to the bundles list
-    vim.list_extend(bundles, vim.split(vim.fn.glob(java_test_path .. "/extension/server/*.jar", 1), "\n"))
+    vim.list_extend(bundles, vim.split(vim.fn.glob(java_test_path .. "/extension/server/*.jar", true), "\n"))
 
     return bundles
 end
@@ -130,6 +125,13 @@ local function java_keymaps()
             require("lazyvim.util").format({ force = true })
         end
     end)
+
+    vim.keymap.set(
+        "n",
+        "<leader>Jm",
+        '<Esc><cmd>lua require("jdtls.dap").setup_dap_main_class_configs()<cr>',
+        { desc = "[J]ava [U]pdate main methods" }
+    )
 end
 
 local function get_runtimes()
@@ -316,7 +318,7 @@ local function setup_jdtls()
         "-Dlog.level=ALL",
         -- "-Djava.class.path=" .. "C:/Users/saker.helmy/msd/headless/components/headless/MqttCommon/src/main/java",
         -- "-Dbranch=headless",
-        "-Xmx8G",
+        "-Xmx16G",
         "--add-modules=ALL-SYSTEM",
         "--add-opens",
         "java.base/java.util=ALL-UNNAMED",
@@ -468,15 +470,15 @@ local function setup_jdtls()
         require("jdtls.setup").add_commands()
         -- Refresh the codelens
         -- Code lens enables features such as code reference counts, implementation counts, and more.
-        vim.lsp.codelens.refresh()
+        -- vim.lsp.codelens.refresh()
 
         -- Setup a function that automatically runs every time a java file is saved to refresh the code lens
-        vim.api.nvim_create_autocmd("BufWritePost", {
-            pattern = { "*.java" },
-            callback = function()
-                local _, _ = pcall(vim.lsp.codelens.refresh)
-            end,
-        })
+        -- vim.api.nvim_create_autocmd("BufWritePost", {
+        --     pattern = { "*.java" },
+        --     callback = function()
+        --         local _, _ = pcall(vim.lsp.codelens.refresh)
+        --     end,
+        -- })
     end
 
     -- Create the configuration table for the start or attach function

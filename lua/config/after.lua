@@ -40,7 +40,11 @@ if not vim.g.lite then
     ---@param filename string
     ---@return string
     vim.g.get_mason_package_bin = function (filename)
-        return vim.env.HOME .. (vim.g.windows and "AppData/Local/nvim-data" or "/.local/share/nvim") .. "/mason/bin/" .. filename
+        return vim.env.HOME .. (vim.g.windows and "/AppData/Local/nvim-data" or "/.local/share/nvim") .. "/mason/bin/" .. filename
+    end
+
+    vim.g.get_mason_package_path = function (name)
+        return vim.env.HOME .. (vim.g.windows and "/AppData/Local/nvim-data" or "/.local/share/nvim") .. "/mason/packages/" .. name
     end
 
     vim.api.nvim_create_user_command("EnableCMake", require("config.cmake").setup, {})
