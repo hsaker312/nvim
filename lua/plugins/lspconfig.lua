@@ -72,6 +72,7 @@ return {
         -- require("lspconfig").jsonls.setup({})
         -- require("lspconfig").bashls.setup({})
         require("lspconfig").pyright.setup({})
+        require("lspconfig").ruff.setup({})
         require("lspconfig").cmake.setup({})
         require("lspconfig").nimls.setup({})
 
