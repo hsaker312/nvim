@@ -183,12 +183,20 @@ end, { noremap = true, silent = true, desc = "Select line" })
 -- vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 -- vim.keymap.set("n", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
 
-vim.keymap.set("v", "<Del>", "di", { noremap = true, silent = true, desc = "Delete Selected" })
+vim.keymap.set("v", "<Del>", function()
+    if math.max(vim.fn.col("."), vim.fn.col("v")) ~= (vim.fn.col("$") - 1) then
+        vim.cmd("normal! d")
+        vim.cmd("startinsert")
+    else
+        vim.cmd("normal! d")
+        vim.cmd("startinsert!")
+    end
+end, { noremap = true, silent = true, desc = "Delete Selected" })
 vim.keymap.set("n", "<Del>", "dl", { noremap = true, silent = true, desc = "Delete Selected" })
 
-vim.keymap.set("n", "<C-x>", "V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
-vim.keymap.set("i", "<C-x>", "<esc>V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
-vim.keymap.set("v", "<C-x>", "<Del>i", { noremap = true, silent = true, desc = "Cut Selected" })
+vim.keymap.set("n", "<C-x>", '_vg_"+y<esc>gv"py<esc>gvd', { noremap = true, silent = true, desc = "Cut Line" })
+-- vim.keymap.set("i", "<C-x>", "<esc>V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
+vim.keymap.set("v", "<C-x>", '"+y<esc>gv"py<esc>gvd', { noremap = true, silent = true, desc = "Cut Selected" })
 
 vim.keymap.set({ "n", "i" }, "<C-c>", "<esc>", { noremap = true, silent = true, desc = "Copy Line" })
 vim.keymap.set("v", "<C-c>", '"+y<esc>gv"py<esc>gv', { noremap = true, silent = true, desc = "Copy Selected" })
@@ -237,11 +245,19 @@ end, { noremap = true, silent = true, desc = "Copy To Reg 5" })
 --     paste()
 -- end, { noremap = true, silent = true, desc = "Paste" })
 
+vim.keymap.set("n", "<C-v>", function()
+    if vim.fn.col(".") ~= vim.fn.col("$") then
+        vim.cmd('normal! "pPl')
+    else
+        vim.cmd('normal! "ppl')
+    end
+end, { noremap = true, silent = true, desc = "Paste" })
+
 vim.keymap.set("i", "<C-v>", function()
     if vim.fn.col(".") ~= vim.fn.col("$") then
         vim.cmd('normal! "pPla')
     else
-        vim.cmd('normal! "pPl')
+        vim.cmd('normal! "ppl')
         vim.cmd("startinsert!")
     end
 end, { noremap = true, silent = true, desc = "Paste" })
@@ -249,7 +265,6 @@ end, { noremap = true, silent = true, desc = "Paste" })
 
 vim.keymap.set("v", "<C-v>", function()
     vim.cmd('normal! "ppgvv')
-    -- vim.cmd('startinsert!')
 end, { noremap = true, silent = true, desc = "Paste Over Selected" })
 
 -- vim.keymap.set("v", "<C-v>", function()
@@ -649,7 +664,8 @@ local visual_keys = {
 Pasting = false
 Deleting = false
 
-vim.keymap.set("n", "pp", "p")
+vim.keymap.set("n", "p", "<nop>")
+-- vim.keymap.set("n", "pp", "p")
 
 for _, key in pairs(visual_keys) do
     vim.keymap.set("n", "p" .. key, function()
@@ -660,14 +676,15 @@ for _, key in pairs(visual_keys) do
             local line_end = vim.fn.line(".")
             local col_start = vim.fn.col("v")
             local col_end = vim.fn.col(".")
-
+            --
             if line_start ~= line_end or col_start ~= col_end then
-                delete_selected()
-
-                vim.schedule(function()
-                    paste()
-                    vim.api.nvim_command("stopinsert")
-                end)
+                vim.cmd('normal! "ppgvv')
+            --     delete_selected()
+            --
+            --     vim.schedule(function()
+            --         paste()
+            --         vim.api.nvim_command("stopinsert")
+            --     end)
             else
                 Pasting = true
             end
@@ -686,11 +703,12 @@ for _, key in pairs(visual_keys) do
             local col_end = vim.fn.col(".")
 
             if line_start ~= line_end or col_start ~= col_end then
-                delete_selected()
-
-                vim.schedule(function()
-                    vim.api.nvim_command("stopinsert")
-                end)
+                vim.cmd("normal! d")
+                -- delete_selected()
+                --
+                -- vim.schedule(function()
+                vim.api.nvim_command("stopinsert")
+                -- end)
             else
                 Deleting = true
             end
