@@ -23,11 +23,13 @@ vim.g.clipboard = {
   copy = {
     ['+'] = require('vim.ui.clipboard.osc52').copy '+',
     ['*'] = require('vim.ui.clipboard.osc52').copy '*',
+    -- ['"'] = require('vim.ui.clipboard.osc52').copy '"',
   },
-  -- paste = {
-  --   ['+'] = require('vim.ui.clipboard.osc52').paste '+',
-  --   ['*'] = require('vim.ui.clipboard.osc52').paste '*',
-  -- },
+  paste = {
+    ['+'] = require('vim.ui.clipboard.osc52').paste '+',
+    ['*'] = require('vim.ui.clipboard.osc52').paste '*',
+    -- ['"'] = require('vim.ui.clipboard.osc52').paste '"',
+  },
 }
 
 vim.diagnostic.config({

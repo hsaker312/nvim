@@ -180,15 +180,18 @@ vim.keymap.set("n", "M", function()
     end)
 end, { noremap = true, silent = true, desc = "Select line" })
 
-vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
-vim.keymap.set("n", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
+-- vim.keymap.set("v", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
+-- vim.keymap.set("n", "<Del>", delete_selected, { noremap = true, silent = true, desc = "Delete Selected" })
+
+vim.keymap.set("v", "<Del>", "di", { noremap = true, silent = true, desc = "Delete Selected" })
+vim.keymap.set("n", "<Del>", "dl", { noremap = true, silent = true, desc = "Delete Selected" })
 
 vim.keymap.set("n", "<C-x>", "V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
 vim.keymap.set("i", "<C-x>", "<esc>V<Del>", { noremap = true, silent = true, desc = "Cut Line" })
 vim.keymap.set("v", "<C-x>", "<Del>i", { noremap = true, silent = true, desc = "Cut Selected" })
 
 vim.keymap.set({ "n", "i" }, "<C-c>", "<esc>", { noremap = true, silent = true, desc = "Copy Line" })
-vim.keymap.set("v", "<C-c>", '"+y<esc>gv', { noremap = true, silent = true, desc = "Copy Selected" })
+vim.keymap.set("v", "<C-c>", '"+y<esc>gv"py<esc>gv', { noremap = true, silent = true, desc = "Copy Selected" })
 
 local function setreg(reg)
     vim.ui.input({}, function(input)
@@ -221,25 +224,38 @@ vim.keymap.set("n", "<leader>5", function()
     setreg("5")
 end, { noremap = true, silent = true, desc = "Copy To Reg 5" })
 
-vim.keymap.set("n", "<C-v>", function()
-    local col_num = vim.fn.col(".")
-    local line_num = vim.fn.line(".")
+-- vim.keymap.set("n", "<C-v>", function()
+--     local col_num = vim.fn.col(".")
+--     local line_num = vim.fn.line(".")
+--
+--     vim.api.nvim_command("startinsert")
+--
+--     if col_num > 1 then
+--         vim.api.nvim_command("normal! l")
+--     end
+--
+--     paste()
+-- end, { noremap = true, silent = true, desc = "Paste" })
 
-    vim.api.nvim_command("startinsert")
-
-    if col_num > 1 then
-        vim.api.nvim_command("normal! l")
+vim.keymap.set("i", "<C-v>", function()
+    if vim.fn.col(".") ~= vim.fn.col("$") then
+        vim.cmd('normal! "pPla')
+    else
+        vim.cmd('normal! "pPl')
+        vim.cmd("startinsert!")
     end
-
-    paste()
 end, { noremap = true, silent = true, desc = "Paste" })
-
-vim.keymap.set("i", "<C-v>", paste, { noremap = true, silent = true, desc = "Paste" })
+-- vim.keymap.set("i", "<C-v>", paste, { noremap = true, silent = true, desc = "Paste" })
 
 vim.keymap.set("v", "<C-v>", function()
-    delete_selected()
-    vim.schedule(paste)
+    vim.cmd('normal! "ppgvv')
+    -- vim.cmd('startinsert!')
 end, { noremap = true, silent = true, desc = "Paste Over Selected" })
+
+-- vim.keymap.set("v", "<C-v>", function()
+--     delete_selected()
+--     vim.schedule(paste)
+-- end, { noremap = true, silent = true, desc = "Paste Over Selected" })
 
 vim.keymap.set(
     "n",
@@ -318,22 +334,22 @@ vim.keymap.set("v", "<S-tab>", function()
     vim.api.nvim_command("call cursor(" .. tostring(le) .. "," .. tostring(ce - tab_width) .. ")")
 end, { noremap = true, silent = true, desc = "Shift Line Left" })
 
-vim.keymap.set("v", "(", function()
+vim.keymap.set("v", "((", function()
     surround_selected("(", ")")
 end)
-vim.keymap.set("v", "[", function()
+vim.keymap.set("v", "[[", function()
     surround_selected("[", "]")
 end)
-vim.keymap.set("v", "{", function()
+vim.keymap.set("v", "{{", function()
     surround_selected("{", "}")
 end)
-vim.keymap.set("v", "<", function()
+vim.keymap.set("v", "<<", function()
     surround_selected("<", ">")
 end)
-vim.keymap.set("v", '"', function()
+vim.keymap.set("v", '""', function()
     surround_selected('"', '"')
 end)
-vim.keymap.set("v", "'", function()
+vim.keymap.set("v", "''", function()
     surround_selected("'", "'")
 end)
 
@@ -399,7 +415,6 @@ vim.keymap.set("n", "<CR>", function()
     else
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<c-T>", true, true, true), "", true)
     end
-
 end, { noremap = true, silent = true, desc = "New Line" })
 
 vim.keymap.set("v", "<CR>", function()
