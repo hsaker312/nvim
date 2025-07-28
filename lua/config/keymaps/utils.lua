@@ -144,11 +144,11 @@ vim.keymap.set("n", "]'", "va'<esc>", { noremap = true, silent = true, desc = "N
 vim.keymap.set("n", "['", "va'o<esc>", { noremap = true, silent = true, desc = "Perv '" })
 
 vim.keymap.set("n", "]]", function ()
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("vieo<esc>l", true, true, true), "", true)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("vie<esc>l<esc>", true, true, true), "", true)
 end, { noremap = true, silent = true, desc = "Next '" })
 
 vim.keymap.set("n", "[[", function ()
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("hvie<esc>", true, true, true), "", true)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("hvieo<esc>h<esc>", true, true, true), "", true)
 end, { noremap = true, silent = true, desc = "Next '" })
 
 vim.keymap.set("n", "]a", function()
