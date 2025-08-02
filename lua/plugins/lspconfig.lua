@@ -75,6 +75,7 @@ return {
         require("lspconfig").ruff.setup({})
         require("lspconfig").cmake.setup({})
         require("lspconfig").nimls.setup({})
+        require("lspconfig").omnisharp.setup({})
 
         local lspconfig = require("lspconfig")
         local lsp_capabilities = require("blink-cmp").get_lsp_capabilities({}, true)

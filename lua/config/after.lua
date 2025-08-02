@@ -36,6 +36,8 @@ vim.opt.backup = false
 vim.opt.undodir = vim.env.HOME .. "/.nvim/undodir"
 vim.opt.undofile = true
 
+vim.lsp.inlay_hint.enable(true)
+
 if not vim.g.lite then
     ---@param filename string
     ---@return string
