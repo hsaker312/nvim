@@ -61,12 +61,6 @@ end, { noremap = true, silent = true, desc = "Toggle Debug UI" })
 vim.keymap.set("n", "<leader>ff", function()
     require("telescope.builtin").find_files({ hidden = true })
 end, { noremap = true, silent = true, desc = "Find Files" })
-vim.keymap.set(
-    "n",
-    "<leader>fm",
-    "<cmd> Telescope bookmarks list <CR>",
-    { noremap = true, silent = true, desc = "Find Bookmarks" }
-)
 
 vim.keymap.set("n", "<leader>p", function()
     require("dropbar.api").pick()
