@@ -19,6 +19,11 @@ return {
     priority = 1000,
     opts = {
         transparent_background = true,
+        float = {
+            transparent = true, -- enable transparent floating windows
+            solid = false, -- use solid styling for floating windows, see |winborder|
+        },
+        term_colors = false,
         integrations = {
             telescope = true,
             mason = true,
