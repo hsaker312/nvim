@@ -8,6 +8,14 @@ return {
         },
         keymap = {
             ["<tab>"] = { "hide", "fallback" },
+            ["<C-n>"] = {
+                "snippet_forward",
+                "fallback",
+            },
+            ["<C-.>"] = {
+                "snippet_backward",
+                "fallback",
+            },
         },
     },
 }

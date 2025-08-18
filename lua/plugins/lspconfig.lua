@@ -74,7 +74,7 @@ return {
         require("lspconfig").pyright.setup({})
         require("lspconfig").ruff.setup({})
         require("lspconfig").cmake.setup({})
-        require("lspconfig").nimls.setup({})
+        require("lspconfig").nim_langserver.setup({})
         require("lspconfig").omnisharp.setup({})
         require("lspconfig").ts_ls.setup({})
 
