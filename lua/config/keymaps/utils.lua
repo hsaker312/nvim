@@ -397,6 +397,12 @@ vim.keymap.set(
 )
 vim.keymap.set(
     "n",
+    "<leader>ss",
+    "<cmd> Telescope lsp_document_symbols <CR>",
+    { noremap = true, silent = true, desc = "Find Symbol References (Telescope)" }
+)
+vim.keymap.set(
+    "n",
     "<leader>sL",
     vim.lsp.buf.references,
     { noremap = true, silent = true, desc = "Find Symbol References" }
