@@ -225,7 +225,13 @@ local function get_class_paths(cwd, paths)
     -- return res
 end
 
+local dapTargetIds = {}
+local dapTargets = {}
+
 local function get_root()
+    dapTargetIds = {}
+    dapTargets = {}
+
     local path = vim.uv.cwd() .. "/.nvim/jdtls.json"
     local res_file = io.open(path, "r")
 
@@ -246,6 +252,25 @@ local function get_root()
             maven.userSettings = maven.userSettings
             maven.localRepository = maven.localRepository
         end
+
+        if json.dap ~= nil then
+            if json.dap.targets ~= nil then
+                for k, v in pairs(json.dap.targets) do
+                    local target = {
+                        cmd = v.cmd,
+                        args = {},
+                    }
+
+                    for _, arg in ipairs(v.args) do
+                        local arg_str = arg:gsub("${cwd}", v.cwd)
+                        table.insert(target.args, arg_str)
+                    end
+
+                    table.insert(dapTargetIds, v.id)
+                    dapTargets[v.id] = target
+                end
+            end
+        end
     end
 
     if root_dir == nil then
@@ -264,11 +289,155 @@ local function get_root()
     return root_dir
 end
 
+vim.keymap.set("n", "<leader>Jud", get_root, { desc = "[J]ava [U]pdate [D]AP [T]argets" })
+
 local launcher, os_config, lombok = get_jdtls()
 local workspace_dir = get_workspace()
 local bundles = get_bundles()
 local root_dir, maven = get_root()
 local runtimes = get_runtimes()
+local dap = require("dap")
+
+local function write_to_dap_console(message)
+    vim.schedule(function()
+        local session = dap.session()
+        if session then
+            -- This sends output to the DAP console
+            -- vim.notify(message, vim.log.levels.INFO)
+            -- For actual console output, we need to use the REPL
+            local repl = require("dap.repl")
+            if type(message) == "string" then
+                local msg = message:gsub("[%c]", "")
+                repl.append(msg .. "\n")
+            end
+        else
+            print(message)
+        end
+    end)
+end
+
+local function get_dap_target()
+    local co = coroutine.running()
+    if not co then
+        error("Must be called from a coroutine")
+    end
+
+    local targetId = nil
+    local target = nil
+
+    vim.ui.select(dapTargetIds, {
+        prompt = "Select Target:",
+    }, function(choice)
+        targetId = choice
+        target = dapTargets[targetId]
+
+        if target then
+            if target.cmd then
+                coroutine.resume(co)
+            else
+                local runtimePaths = {}
+
+                for _, v in pairs(runtimes) do
+                    table.insert(runtimePaths, v.path)
+                end
+
+                vim.ui.select(runtimePaths, {
+                    prompt = "Select Runtime:",
+                }, function(selected_runtime)
+                    if selected_runtime then
+                        target.cmd = selected_runtime .. "/bin/java"
+                        print(target.cmd)
+                    else
+                        target = nil
+                    end
+                    coroutine.resume(co)
+                end)
+            end
+        else
+            coroutine.resume(co)
+        end
+    end)
+
+    coroutine.yield()
+    return target
+end
+
+local dapHandle = nil
+
+dap.listeners.after["event_terminated"]["kill_java_debug"] = function(session, body)
+    if dapHandle ~= nil and not dapHandle:is_closing() then
+        dapHandle:kill("sigterm")
+    end
+end
+
+-- Handle disconnect
+dap.listeners.after["disconnect"]["kill_java_debug"] = function(session, body)
+    if dapHandle ~= nil and not dapHandle:is_closing() then
+        dapHandle:kill("sigterm")
+    end
+end
+
+-- Handle exit
+dap.listeners.after["event_exited"]["kill_java_debug"] = function(session, body)
+    if dapHandle ~= nil and not dapHandle:is_closing() then
+        dapHandle:kill("sigterm")
+    end
+end
+
+-- Handle unexpected termination
+dap.listeners.after["error"]["kill_java_debug"] = function(session, body)
+    if body and body.error then
+        if dapHandle ~= nil and not dapHandle:is_closing() then
+            dapHandle:kill("sigterm")
+        end
+    end
+end
+
+dap.configurations.java = {
+    {
+        type = "java",
+        request = "attach",
+        name = "Debug Custom Target",
+        hostName = "127.0.0.1",
+        port = function()
+            local target = get_dap_target()
+
+            if target == nil then
+                print("Target not found")
+                return
+            end
+
+            local pipe = { stdout = vim.uv.new_pipe(false), stderr = vim.uv.new_pipe(false) }
+            dapHandle = vim.uv.spawn(target.cmd, {
+                args = target.args,
+                stdio = { nil, pipe.stdout, pipe.stderr },
+            }, function()
+                print("DAP Terminated!")
+
+                pipe.stdout:close()
+                pipe.stderr:close()
+                if dapHandle ~= nil then
+                    dapHandle:close()
+                    dapHandle = nil
+                end
+            end)
+
+            vim.uv.read_start(pipe.stdout, function(err, data)
+                write_to_dap_console(err)
+                write_to_dap_console(data)
+            end)
+            vim.uv.read_start(pipe.stderr, function(err, data)
+                write_to_dap_console(err)
+                write_to_dap_console(data)
+            end)
+
+            return "5005"
+        end,
+        console = "integratedTerminal",
+        internalConsoleOptions = "openOnSessionStart",
+        timeout = 30000,
+    },
+}
 
 local function setup_jdtls()
     -- print(get_class_paths())
@@ -310,7 +479,7 @@ local function setup_jdtls()
 
     -- Set the command that starts the JDTLS language server jar
     local cmd = {
-        vim.g.windows and "C:/Users/hilmy_irl0jew/.jdks/graalvm-ce-24.0.2/bin/java.exe" or "java",
+        vim.g.windows and home .. "/.jdks/graalvm-jdk-24.0.2/bin/java.exe" or "java",
         "-Declipse.application=org.eclipse.jdt.ls.core.id1",
         "-Dosgi.bundles.defaultStartLevel=4",
         "-Declipse.product=org.eclipse.jdt.ls.core.product",
@@ -467,7 +636,7 @@ local function setup_jdtls()
         -- Unfortunately I have not found an elegant way to ensure this works 100%
         require("jdtls.dap").setup_dap_main_class_configs()
         -- Enable jdtls commands to be used in Neovim
-        require("jdtls.setup").add_commands()
+        -- require("jdtls.setup").add_commands()
         -- Refresh the codelens
         -- Code lens enables features such as code reference counts, implementation counts, and more.
         -- vim.lsp.codelens.refresh()

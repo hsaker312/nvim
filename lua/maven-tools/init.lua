@@ -51,7 +51,7 @@ local prefix = "maven-tools."
 ---@type MavenToolsConfig
 local config = require(prefix .. "config.config")
 
----@type MavenToolsConfig
+---@type MavenToolsMavenConfig
 local maven_config = require(prefix .. "config.maven")
 
 ---@type MavenImporterNew
@@ -62,7 +62,6 @@ local utils = require(prefix .. "utils")
 
 ----@type MavenImporter
 local maven_importer = require(prefix .. "maven.importer")
-
 
 local function toggle()
     require("maven-tools.ui.main"):toggle_main_win()
@@ -113,12 +112,32 @@ function MavenTools.setup(opts)
                     require("maven-tools.ui.main").init()
                 end
 
-                vim.api.nvim_create_user_command("MavenToolsToggle", 'lua require("maven-tools.ui.main").toggle_main_win()', {})
-                vim.api.nvim_create_user_command("MavenToolsShow", 'lua require("maven-tools.ui.main").show_main_win()', {})
-                vim.api.nvim_create_user_command("MavenToolsHide", 'lua require("maven-tools.ui.main").hide_main_win()', {})
+                vim.api.nvim_create_user_command(
+                    "MavenToolsToggle",
+                    'lua require("maven-tools.ui.main").toggle_main_win()',
+                    {}
+                )
+                vim.api.nvim_create_user_command(
+                    "MavenToolsShow",
+                    'lua require("maven-tools.ui.main").show_main_win()',
+                    {}
+                )
+                vim.api.nvim_create_user_command(
+                    "MavenToolsHide",
+                    'lua require("maven-tools.ui.main").hide_main_win()',
+                    {}
+                )
                 vim.api.nvim_create_user_command("MavenToolsRun", 'lua require("maven-tools.ui.main").run(0)', {})
-                vim.api.nvim_create_user_command("MavenToolsAddLocalDependency", 'lua require("maven-tools.ui.main").add_local_dependency(0)', {})
-                vim.api.nvim_create_user_command("MavenToolsAddDependency", 'lua require("maven-tools.ui.main").add_dependency(0)', {})
+                vim.api.nvim_create_user_command(
+                    "MavenToolsAddLocalDependency",
+                    'lua require("maven-tools.ui.main").add_local_dependency(0)',
+                    {}
+                )
+                vim.api.nvim_create_user_command(
+                    "MavenToolsAddDependency",
+                    'lua require("maven-tools.ui.main").add_dependency(0)',
+                    {}
+                )
             end)
         end)
     end)

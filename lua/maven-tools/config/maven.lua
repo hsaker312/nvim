@@ -2,7 +2,7 @@
 ---@field cmd string
 ---@field args string[]
 
----@class MavenToolsConfig
+---@class MavenToolsMavenConfig
 MavenToolsMavenConfig = {}
 
 local prefix = "maven-tools."
@@ -203,7 +203,7 @@ local function get_importer_shell_command(file, cmd)
 end
 
 local function get_runner_shell_command(file, cmd)
-    local res = runner
+    local res = "" .. runner
 
     if type(file) == "string" then
         res = res .. '-f "' .. file .. '" '
@@ -253,6 +253,7 @@ end
 ---@return string[]
 local function get_runner_args(file, cmds)
     local res = {}
+
     if config.OS == "Windows" then
         table.insert(res, "-NoProfile")
         table.insert(res, "-Command")

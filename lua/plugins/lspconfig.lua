@@ -31,7 +31,7 @@ return {
                 exclude = { "jdtls", "clangd", "lua_ls" }
             },
             ensure_installed = {
-                "jdtls",
+                -- "jdtls",
                 "jsonls",
                 "pyright",
             },

@@ -111,7 +111,7 @@ function MavenToolsRunner.run(entry, pom_file, reset_callback, append_callback)
     end
 
     local pipeCmd = mavenConfig.runner_pipe_cmd(pom_file, { entry.command })
-    print(vim.inspect(pipeCmd))
+    -- print(vim.inspect(pipeCmd))
     currentCommand = entry.command
 
     real_time_notification()
