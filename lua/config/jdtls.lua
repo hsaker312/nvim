@@ -310,7 +310,7 @@ local function setup_jdtls()
 
     -- Set the command that starts the JDTLS language server jar
     local cmd = {
-        vim.g.windows and "C:/Users/saker.helmy/.jdks/graalvm-ce-21.0.2/bin/java.exe" or "java",
+        vim.g.windows and "C:/Users/hilmy_irl0jew/.jdks/graalvm-ce-24.0.2/bin/java.exe" or "java",
         "-Declipse.application=org.eclipse.jdt.ls.core.id1",
         "-Dosgi.bundles.defaultStartLevel=4",
         "-Declipse.product=org.eclipse.jdt.ls.core.product",
