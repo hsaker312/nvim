@@ -2,7 +2,7 @@ return {
     "linux-cultist/venv-selector.nvim",
     enabled = not vim.g.lite,
     dependencies = { "neovim/nvim-lspconfig", "nvim-telescope/telescope.nvim", "mfussenegger/nvim-dap-python" },
-    branch = "regexp",
+    branch = "main",
     opts = {
         -- Your options go here
         -- name = "venv",

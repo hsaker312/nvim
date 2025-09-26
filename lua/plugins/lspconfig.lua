@@ -7,10 +7,8 @@ return {
     event = "VeryLazy",
     dependencies = {
         -- LSP Management
-        -- https://github.com/williamboman/mason.nvim
-        { "williamboman/mason.nvim" },
-        -- https://github.com/williamboman/mason-lspconfig.nvim
-        { "williamboman/mason-lspconfig.nvim" },
+        { "mason-org/mason.nvim" },
+        { "mason-org/mason-lspconfig.nvim" },
 
         -- Auto-Install LSPs, linters, formatters, debuggers
         -- https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim
@@ -28,7 +26,7 @@ return {
         require("mason").setup()
         require("mason-lspconfig").setup({
             automatic_enable = {
-                exclude = { "jdtls", "clangd", "lua_ls" }
+                exclude = { "jdtls", "clangd", "lua_ls" },
             },
             ensure_installed = {
                 -- "jdtls",

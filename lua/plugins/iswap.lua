@@ -1,4 +1,5 @@
 return {
-  "mizlan/iswap.nvim",
-  event = "VeryLazy"
+    "mizlan/iswap.nvim",
+    event = "VeryLazy",
+    enabled = false
 }
