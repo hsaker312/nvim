@@ -156,10 +156,6 @@ vim.keymap.set(
 
 vim.keymap.set("n", "gs", "<Cmd>ISwap<CR>", { noremap = true, silent = true, desc = "Swap Arguments" })
 
-vim.keymap.set("n", "<leader>a", function()
-    require("harpoon"):list():add()
-end)
-
-vim.keymap.set("n", "<C-e>", function()
-    require("harpoon").ui:toggle_quick_menu(require("harpoon"):list())
+vim.keymap.set("i", "<C-l>", function()
+    require("tabnine.completion").accept()
 end)

@@ -30,8 +30,8 @@ return {
             },
             ensure_installed = {
                 -- "jdtls",
-                "jsonls",
-                "pyright",
+                -- "jsonls",
+                -- "pyright",
             },
         })
 
@@ -39,24 +39,24 @@ return {
             -- Install these linters, formatters, debuggers automatically
             ensure_installed = {
                 -- "asm-lsp",
-                "asmfmt",
-                "bash-language-server",
-                "cmake-language-server",
-                "lua-language-server",
-                "black",
-                "clang-format",
-                "codelldb",
-                "codespell",
-                "cpptools",
-                "debugpy",
-                "java-debug-adapter",
-                "java-test",
-                "mypy",
-                "ruff",
-                "shfmt",
-                "stylua",
-                "vscode-java-decompiler",
-                "xmlformatter",
+                -- "asmfmt",
+                -- "bash-language-server",
+                -- "cmake-language-server",
+                -- "lua-language-server",
+                -- "black",
+                -- "clang-format",
+                -- "codelldb",
+                -- "codespell",
+                -- "cpptools",
+                -- "debugpy",
+                -- "java-debug-adapter",
+                -- "java-test",
+                -- "mypy",
+                -- "ruff",
+                -- "shfmt",
+                -- "stylua",
+                -- "vscode-java-decompiler",
+                -- "xmlformatter",
             },
         })
 
@@ -69,14 +69,43 @@ return {
 
         -- require("lspconfig").jsonls.setup({})
         -- require("lspconfig").bashls.setup({})
-        require("lspconfig").pyright.setup({})
-        require("lspconfig").ruff.setup({})
-        require("lspconfig").cmake.setup({})
-        require("lspconfig").nim_langserver.setup({})
-        require("lspconfig").omnisharp.setup({})
-        require("lspconfig").ts_ls.setup({})
+        if require("lspconfig").pyright then
+            require("lspconfig").pyright.setup({})
+        end
 
-        local lspconfig = require("lspconfig")
+        if require("lspconfig").ruff then
+            require("lspconfig").ruff.setup({})
+        end
+
+        if require("lspconfig").cmake then
+            require("lspconfig").cmake.setup({})
+        end
+
+        if require("lspconfig").nim_langserver then
+            require("lspconfig").nim_langserver.setup({})
+        end
+
+        if require("lspconfig").omnisharp then
+            require("lspconfig").omnisharp.setup({})
+        end
+
+        if require("lspconfig").ts_ls then
+            require("lspconfig").ts_ls.setup({})
+        end
+
+        if require("lspconfig").lua_ls then
+            require("lspconfig").lua_ls.setup({
+                settings = {
+                    Lua = {
+                        diagnostics = {
+                            -- Get the language server to recognize the `vim` global
+                            globals = { "vim" },
+                        },
+                    },
+                },
+            })
+        end
+
         local lsp_capabilities = require("blink-cmp").get_lsp_capabilities({}, true)
         local lsp_attach = function(client, bufnr)
             -- Create your keybindings here...
@@ -94,18 +123,6 @@ return {
         --         end
         --     end,
         -- })
-
-        -- Lua LSP settings
-        lspconfig.lua_ls.setup({
-            settings = {
-                Lua = {
-                    diagnostics = {
-                        -- Get the language server to recognize the `vim` global
-                        globals = { "vim" },
-                    },
-                },
-            },
-        })
 
         -- Globally configure all LSP floating preview popups (like hover, signature help, etc)
         -- local open_floating_preview = vim.lsp.util.open_floating_preview
