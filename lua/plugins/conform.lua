@@ -10,7 +10,8 @@ return {
             json = { "fixjson" },
             python = { "black" },
             cmake = {"gersemi"},
-            javascript = {"prettier"}
+            javascript = {"prettier"},
+            yaml = { "yamlfix" },
             -- ["*"] = { "codespell" },
         },
     },
