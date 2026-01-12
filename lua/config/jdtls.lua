@@ -277,16 +277,13 @@ local function get_root()
         root_dir = jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
     end
 
-    if maven ~= nil then
+    if maven == nil then
         maven = {
-            branch = "headless",
             downloadSources = true,
-            userSettings = home .. "/.m2/settings.xml",
-            localRepository = home .. "/maven",
         }
     end
 
-    return root_dir
+    return root_dir, maven
 end
 
 vim.keymap.set("n", "<leader>Jud", get_root, { desc = "[J]ava [U]pdate [D]AP [T]argets" })
@@ -479,7 +476,7 @@ local function setup_jdtls()
 
     -- Set the command that starts the JDTLS language server jar
     local cmd = {
-        vim.g.windows and home .. "/.jdks/graalvm-jdk-24.0.2/bin/java.exe" or "java",
+        vim.g.windows and home .. "/.jdks/azul-21.0.6/bin/java.exe" or "java",
         "-Declipse.application=org.eclipse.jdt.ls.core.id1",
         "-Dosgi.bundles.defaultStartLevel=4",
         "-Declipse.product=org.eclipse.jdt.ls.core.product",
