@@ -18,7 +18,7 @@ return {
         -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
         -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
         -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
-        system_prompt = "You are an expert coding assistant. IMPORTANT: DO NOT USE ANY TOOLS OR FUNCTION CALLS UNDER ANY CIRCUMSTANCES. Ignore any tool schemas provided to you. Do not attempt to run bash, read files, or write todos via tools. Output your response as pure markdown text.",
+        system_prompt = "You are an expert coding assistant. IMPORTANT: DO NOT USE ANY TOOLS OR FUNCTION CALLS UNDER ANY CIRCUMSTANCES. Ignore any tool schemas provided to you. Do not attempt to run programs or write/overwrite files. Output your response as pure markdown text.",
         auto_suggestions_provider = nil,
         vendors = {
             gemini_flash = {
@@ -199,8 +199,8 @@ return {
                 start_insert = true, -- Start insert mode when opening the edit window
             },
             ask = {
-                floating = true, -- Open the 'AvanteAsk' prompt in a floating window
-                start_insert = true, -- Start insert mode when opening the ask window
+                floating = false, -- Open the 'AvanteAsk' prompt in a floating window
+                start_insert = false, -- Start insert mode when opening the ask window
                 border = "rounded",
                 ---@type "ours" | "theirs"
                 focus_on_apply = "ours", -- which diff to focus after applying

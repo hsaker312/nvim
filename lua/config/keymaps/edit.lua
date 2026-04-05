@@ -773,13 +773,3 @@ vim.keymap.set("n", "<esc>", function()
     Pasting = false
     vim.api.nvim_command("nohlsearch")
 end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
-
-vim.keymap.set("n", "<leader>y", function()
-    if vim.g.windows then
-        local str = vim.fn.getreg("+")
-        vim.cmd("set shell=cmd")
-        local c = "!ssh -i ~/.ssh/linux-pc -p 2277 helmy@192.168.0.3 \"echo '" .. str .. "' | wl-copy 2>/dev/null\""
-        print(c)
-        vim.cmd(c)
-    end
-end)
