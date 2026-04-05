@@ -1,6 +1,6 @@
 return {
     "gelguy/wilder.nvim",
-    enabled = not vim.g.lite,
+    enabled = false,
     config = function()
         local wilder = require("wilder")
 

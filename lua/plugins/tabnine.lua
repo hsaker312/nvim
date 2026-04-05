@@ -1,6 +1,6 @@
 return {
     "codota/tabnine-nvim",
-    enabled = not vim.g.lite,
+    enabled = false,
     build = vim.g.windows and "powershell.exe -file .\\dl_binaries.ps1" or "./dl_binaries.sh",
     config = function()
         require("tabnine").setup({
