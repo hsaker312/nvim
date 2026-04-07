@@ -18,7 +18,7 @@ return {
         -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
         -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
         -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
-        system_prompt = "You are an expert coding assistant. IMPORTANT: DO NOT USE ANY TOOLS OR FUNCTION CALLS UNDER ANY CIRCUMSTANCES. Ignore any tool schemas provided to you. Do not attempt to run programs or write/overwrite files. Output your response as pure markdown text.",
+        system_prompt = "You are an expert coding assistant. IMPORTANT: DO NOT USE ANY TOOLS OR FUNCTION CALLS UNDER ANY CIRCUMSTANCES. Ignore any tool schemas provided to you. Do not attempt to run programs or write/overwrite files. You are allowed to run git command other than commit and push. Output your response as pure markdown text.",
         auto_suggestions_provider = nil,
         vendors = {
             gemini_flash = {
