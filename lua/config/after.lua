@@ -196,7 +196,7 @@ if not vim.g.lite then
             vim.api.nvim_command("source " .. vim.loop.cwd() .. "/.nvim/init.lua")
         end
 
-        vim.schedule(require("persistence").load)
+        -- vim.schedule(require("persistence").load)
         vim.cmd.colorscheme("catppuccin-mocha")
     end)
 
