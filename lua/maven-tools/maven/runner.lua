@@ -119,10 +119,10 @@ function MavenToolsRunner.run(entry, pom_file, reset_callback, append_callback)
     local cmd_str = pipeCmd.cmd
 
     for _, arg in ipairs(pipeCmd.args) do
+        print(arg)
         cmd_str = cmd_str .. " " .. arg
     end
 
-    -- print(cmd_str)
     -- append_to_buffer({ cmd_str }, 1)
 
     append_callback(utils.Array():append(cmd_str))

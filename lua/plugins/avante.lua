@@ -20,13 +20,6 @@ return {
         -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
         system_prompt = "You are an expert coding assistant. IMPORTANT: DO NOT USE ANY TOOLS OR FUNCTION CALLS UNDER ANY CIRCUMSTANCES. Ignore any tool schemas provided to you. Do not attempt to run programs or write/overwrite files. You are allowed to run git command other than commit and push. Output your response as pure markdown text.",
         auto_suggestions_provider = nil,
-        vendors = {
-            gemini_flash = {
-                __inherited_from = "gemini",
-                endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
-                model = "gemini-2.5-flash",
-            },
-        },
         providers = {
             gemini = {
                 endpoint = "https://generativelanguage.googleapis.com/v1beta/models",

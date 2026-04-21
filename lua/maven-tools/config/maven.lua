@@ -93,12 +93,30 @@ MavenToolsMavenConfig.importerOptions = {}
 ---@type string[]
 MavenToolsMavenConfig.runnerOptions = {}
 
-local function make_shell_command(jdk, options)
+---@type string[]
+MavenToolsMavenConfig.importerVmOptions = {}
+
+---@type string[]
+MavenToolsMavenConfig.runnerVmOptions = {}
+
+local function make_shell_command(jdk, vmOptions, options)
     local res = ""
 
     if type(jdk) == "string" then
         if config.OS == "Windows" then
             res = '$env:JAVA_HOME="' .. jdk .. '";'
+
+            local vmOptionsStr = ""
+
+            if type(vmOptions) == "table" then
+                for _, opt in ipairs(vmOptions) do
+                    vmOptionsStr = vmOptionsStr .. opt .. " "
+                end
+            end
+
+            if vmOptionsStr ~= "" then
+                res = res .. '$env:MAVEN_OPTS="' .. vmOptionsStr .. '";'
+            end
         else
             res = 'env JAVA_HOME="' .. jdk .. '"'
         end
@@ -189,8 +207,16 @@ local function make_shell_command(jdk, options)
     return res
 end
 
-local importer = make_shell_command(MavenToolsMavenConfig.importerJdk, MavenToolsMavenConfig.importerOptions)
-local runner = make_shell_command(MavenToolsMavenConfig.runnerJdk, MavenToolsMavenConfig.runnerOptions)
+local importer = make_shell_command(
+    MavenToolsMavenConfig.importerJdk,
+    MavenToolsMavenConfig.importerVmOptions,
+    MavenToolsMavenConfig.importerOptions
+)
+local runner = make_shell_command(
+    MavenToolsMavenConfig.runnerJdk,
+    MavenToolsMavenConfig.runnerVmOptions,
+    MavenToolsMavenConfig.runnerOptions
+)
 
 local function get_importer_shell_command(file, cmd)
     local res = importer
@@ -257,6 +283,7 @@ local function get_runner_args(file, cmds)
     if config.OS == "Windows" then
         table.insert(res, "-NoProfile")
         table.insert(res, "-Command")
+        -- table.insert(res, "{")
     else
         table.insert(res, "-c")
     end
@@ -280,6 +307,7 @@ local function get_runner_args(file, cmds)
     end
 
     table.insert(res, arg)
+    -- table.insert(res, "}")
 
     return res
 end
@@ -318,8 +346,16 @@ function MavenToolsMavenConfig.importer_checksum()
 end
 
 function MavenToolsMavenConfig.update()
-    importer = make_shell_command(MavenToolsMavenConfig.importerJdk, MavenToolsMavenConfig.importerOptions)
-    runner = make_shell_command(MavenToolsMavenConfig.runnerJdk, MavenToolsMavenConfig.runnerOptions)
+    importer = make_shell_command(
+        MavenToolsMavenConfig.importerJdk,
+        MavenToolsMavenConfig.importerVmOptions,
+        MavenToolsMavenConfig.importerOptions
+    )
+    runner = make_shell_command(
+        MavenToolsMavenConfig.runnerJdk,
+        MavenToolsMavenConfig.runnerVmOptions,
+        MavenToolsMavenConfig.runnerOptions
+    )
 end
 
 return MavenToolsMavenConfig

@@ -7,7 +7,7 @@ local prefix = "maven-tools."
 local utils = require(prefix .. "utils")
 
 ---@type Baleia
-local baleia = require(prefix .. "deps.baleia.lua.baleia").setup({ log = "ERROR" })
+local baleia = require("baleia").setup({ log = "ERROR" })
 
 ---@type integer|nil
 local consoleWin = nil
