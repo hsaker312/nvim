@@ -22,6 +22,7 @@ return {
         auto_suggestions_provider = nil,
         providers = {
             gemini_flash = {
+                __inherited_from = "gemini",
                 endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
                 model = "gemini-3-flash-preview",
                 timeout = 90000,
@@ -37,6 +38,7 @@ return {
                 },
             },
             gemini_pro = {
+                __inherited_from = "gemini",
                 endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
                 model = "gemini-3.1-pro-preview",
                 timeout = 90000,
