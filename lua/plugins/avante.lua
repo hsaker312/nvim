@@ -21,7 +21,22 @@ return {
         system_prompt = "You are an expert coding assistant. IMPORTANT: DO NOT USE ANY TOOLS OR FUNCTION CALLS UNDER ANY CIRCUMSTANCES. Ignore any tool schemas provided to you. Do not attempt to run programs or write/overwrite files. You are allowed to run git command other than commit and push. Output your response as pure markdown text.",
         auto_suggestions_provider = nil,
         providers = {
-            gemini = {
+            gemini_flash = {
+                endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
+                model = "gemini-3-flash-preview",
+                timeout = 90000,
+                context_window = 2097152,
+
+                use_ReAct_prompt = false,
+                disable_tools = true,
+
+                extra_request_body = {
+                    generationConfig = {
+                        temperature = 0.2,
+                    },
+                },
+            },
+            gemini_pro = {
                 endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
                 model = "gemini-3.1-pro-preview",
                 timeout = 90000,
