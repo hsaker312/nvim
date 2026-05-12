@@ -92,3 +92,10 @@ if not vim.g.lite then
         end,
     })
 end
+
+vim.api.nvim_create_autocmd("TermOpen", {
+    callback = function()
+        vim.cmd("setlocal nospell")
+        vim.cmd("startinsert")
+    end
+})

@@ -143,11 +143,11 @@ vim.keymap.set("n", "[<", "va<o<esc>", { noremap = true, silent = true, desc = "
 vim.keymap.set("n", "]'", "va'<esc>", { noremap = true, silent = true, desc = "Next '" })
 vim.keymap.set("n", "['", "va'o<esc>", { noremap = true, silent = true, desc = "Perv '" })
 
-vim.keymap.set("n", "]]", function ()
+vim.keymap.set("n", "]]", function()
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("vie<esc>l<esc>", true, true, true), "", true)
 end, { noremap = true, silent = true, desc = "Next '" })
 
-vim.keymap.set("n", "[[", function ()
+vim.keymap.set("n", "[[", function()
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("hvieo<esc>h<esc>", true, true, true), "", true)
 end, { noremap = true, silent = true, desc = "Next '" })
 
@@ -227,7 +227,7 @@ vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv", { noremap = true, silent = true
 
 vim.keymap.set({ "n", "i", "v" }, "<C-z>", "<cmd>undo<CR>", { noremap = true, silent = true, desc = "Undo" })
 vim.keymap.set({ "n", "v", "i" }, "<C-r>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
-vim.keymap.set({ "n", "v", "i" }, "<C-y>", function ()
+vim.keymap.set({ "n", "v", "i" }, "<C-y>", function()
     print("use C-r")
 end, { noremap = true, silent = true, desc = "Redo" })
 -- vim.keymap.set("i", "<C-r>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
@@ -417,3 +417,13 @@ vim.keymap.set(
     vim.diagnostic.open_float,
     { noremap = true, silent = true, desc = "Show Diagnostics" }
 )
+
+vim.keymap.set("n", "<leader>t", function()
+    vim.cmd("terminal")
+end, { noremap = true, silent = true, desc = "Open Terminal" })
+
+vim.keymap.set("t", "<esc><esc>", "<c-\\><c-n>", { noremap = true, silent = true, desc = "Exit terminal mode" })
+
+vim.keymap.set("n", "<A-v>", "v<c-q>", { noremap = true, silent = true, desc = "Enter visual block mode" })
+vim.keymap.set("i", "<A-v>", "<esc><esc>v<c-q>", { noremap = true, silent = true, desc = "Enter visual block mode" })
+vim.keymap.set("v", "<A-v>", "<c-q>", { noremap = true, silent = true, desc = "Enter visual block mode" })
