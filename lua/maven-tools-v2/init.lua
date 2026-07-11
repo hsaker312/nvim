@@ -10,6 +10,7 @@
 
 ---@class MavenToolsMavenOpts
 ---@field preferMavenWrapper boolean|nil
+---@field mavenExecutable string|nil
 ---@field checksumPolicy "strict"|"lax"|nil
 ---@field checkPluginUpdates boolean|nil
 ---@field encryptMasterPassword string|nil

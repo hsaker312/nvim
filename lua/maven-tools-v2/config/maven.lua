@@ -16,6 +16,9 @@ local config = require(prefix .. "config.config")
 ---@type boolean
 MavenToolsMavenConfig.preferMavenWrapper = false
 
+---@type string
+MavenToolsMavenConfig.mavenExecutable = "mvn"
+
 ---@type "strict"|"lax"|nil
 MavenToolsMavenConfig.checksumPolicy = nil
 
@@ -112,7 +115,7 @@ local function get_maven_executable(pom_file)
             return '"' .. vim.fs.normalize(wrapper_matches[1]) .. '"'
         end
     end
-    return "mvn"
+    return MavenToolsMavenConfig.mavenExecutable or "mvn"
 end
 
 local function make_shell_command(jdk, vmOptions, options, pom_file)
