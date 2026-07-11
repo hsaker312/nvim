@@ -641,37 +641,25 @@ local function update_modules_and_pending_plugins()
 
         if projectInfo.pomFile ~= nil then
             for i, module in ipairs(projectInfo.modules) do
-                if
-                    MavenImporter.pomFileToMavenInfoMap[module] ~= nil
-                    or MavenImporter.pomFileToErrorMap[module] ~= nil
-                then
-                    MavenImporter.pomFileIsModuleSet[module][mavenInfoStr] = true
-                    if
-                        not (
-                            MavenImporter.pomFileToMavenInfoMap[module] ~= nil
-                            or MavenImporter.pomFileToErrorMap[module] ~= nil
-                        ) and utils.is_ignored(module) == false
-                    then
-                        start_resolve_maven_info_pom_file_task(utils.Path(module))
-                    end
-                else
-                    local modulePath = get_module_abs_path(utils.Path(projectInfo.pomFile), module)
+                local modulePath = module
+                if not module:match("^/") and not module:match("^%a:") and not module:match("%.xml$") then
+                    modulePath = get_module_abs_path(utils.Path(projectInfo.pomFile), module)
                     projectInfo.modules[i] = modulePath
+                end
 
-                    if MavenImporter.pomFileIsModuleSet[modulePath] == nil then
-                        MavenImporter.pomFileIsModuleSet[modulePath] = { [mavenInfoStr] = true }
-                    else
-                        MavenImporter.pomFileIsModuleSet[modulePath][mavenInfoStr] = true
-                    end
+                if MavenImporter.pomFileIsModuleSet[modulePath] == nil then
+                    MavenImporter.pomFileIsModuleSet[modulePath] = { [mavenInfoStr] = true }
+                else
+                    MavenImporter.pomFileIsModuleSet[modulePath][mavenInfoStr] = true
+                end
 
-                    if
-                        not (
-                            MavenImporter.pomFileToMavenInfoMap[modulePath] ~= nil
-                            or MavenImporter.pomFileToErrorMap[modulePath] ~= nil
-                        ) and utils.is_ignored(modulePath) == false
-                    then
-                        start_resolve_maven_info_pom_file_task(utils.Path(modulePath))
-                    end
+                if
+                    not (
+                        MavenImporter.pomFileToMavenInfoMap[modulePath] ~= nil
+                        or MavenImporter.pomFileToErrorMap[modulePath] ~= nil
+                    ) and utils.is_ignored(modulePath) == false
+                then
+                    start_resolve_maven_info_pom_file_task(utils.Path(modulePath))
                 end
             end
         end
