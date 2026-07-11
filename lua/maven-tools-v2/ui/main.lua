@@ -275,6 +275,17 @@ local function create_header(lines, highlights)
         })
 
         header = header .. progress
+    elseif not mavenImporter.indexing_idle() then
+        local progress = " [Indexing Java files]"
+
+        table.insert(highlights, {
+            highlight = "@comment",
+            lineNum = lines:size(),
+            colBegin = #header,
+            colEnd = #header + #progress,
+        })
+
+        header = header .. progress
     elseif showAll then
         local showAllComment = " [Show All]"
         table.insert(highlights, {
@@ -1097,7 +1108,7 @@ local function generate_main_buffer_lines_new()
     fileToEntriesMap = {}
 
     if filter:len() == 0 and mavenImporter.statusCode > 2 then
-        for _, pomFile in ipairs(mavenImporter.pomFiles) do
+        for _, pomFile in ipairs(mavenImporter.pomFiles:values()) do
             if
                 mavenImporter.pomFileToMavenInfoMap[pomFile] ~= nil
                 and mavenImporter.pomFileIsModuleSet[pomFile] == nil
@@ -1331,7 +1342,7 @@ local function initialize_autocmds()
         projectFilesUpdateTimer = vim.uv.new_timer()
 
         if projectFilesUpdateTimer ~= nil then
-            projectFilesUpdateTimer:start(0, 10000, mavenImporter.refresh_projects_files)
+            projectFilesUpdateTimer:start(0, 60000, mavenImporter.refresh_projects_files)
         end
     end
 end
@@ -1426,7 +1437,7 @@ local function select_project(callback)
     local items = {}
     local projects = {}
 
-    for _, pomFile in ipairs(mavenImporter.pomFiles) do
+    for _, pomFile in ipairs(mavenImporter.pomFiles:values()) do
         if mavenImporter.pomFileToMavenInfoMap[pomFile] ~= nil then
             local mavenInfo = mavenImporter.pomFileToMavenInfoMap[pomFile].info
             local infoStr = mavenImporter.info_to_str(mavenInfo)

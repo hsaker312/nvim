@@ -23,6 +23,9 @@ MavenToolsConfig.localConfigDir = ".nvim/.maven"
 ---@type integer
 MavenToolsConfig.maxParallelJobs = 8
 
+---@type integer
+MavenToolsConfig.indexingThreads = 2
+
 ---@type string[]
 MavenToolsConfig.ignoreFiles = {
     "/META%-INF/",

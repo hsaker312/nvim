@@ -157,6 +157,16 @@ function MavenImporter.progress()
     return taskMgr:progress()
 end
 
+---@return boolean
+function MavenImporter.indexing_idle()
+    return filesTaskMgr:idle()
+end
+
+---@return number
+function MavenImporter.indexing_progress()
+    return filesTaskMgr:progress()
+end
+
 ---@param pom_file string
 ---@param refreshProjectInfo any
 ---@param error string
@@ -528,11 +538,34 @@ local function start_resolve_maven_info_pom_file_task(pomFile, refreshProjectInf
                 return
             end
 
-            MavenImporter.mavenInfoToProjectInfoMap[mavenInfoStr].pomFile = pomFile.str
+            local projectInfo = MavenImporter.mavenInfoToProjectInfoMap[mavenInfoStr]
+            projectInfo.pomFile = pomFile.str
             MavenImporter.pomFileToMavenInfoMap[pomFile.str] =
                 { info = mavenInfo, checksum = tostring(utils.file_checksum(pomFile.str)) }
             if MavenImporter.pomFileToErrorMap[pomFile.str] ~= nil then
                 MavenImporter.pomFileToErrorMap[pomFile.str] = nil
+            end
+
+            -- Recursively discover and resolve nested submodules
+            for i, module in ipairs(projectInfo.modules) do
+                local modulePath = module
+                if not module:match("%.xml$") then
+                    modulePath = get_module_abs_path(pomFile, module)
+                    projectInfo.modules[i] = modulePath
+                end
+
+                if MavenImporter.pomFileIsModuleSet[modulePath] == nil then
+                    MavenImporter.pomFileIsModuleSet[modulePath] = { [mavenInfoStr] = true }
+                else
+                    MavenImporter.pomFileIsModuleSet[modulePath][mavenInfoStr] = true
+                end
+
+                if not (
+                    MavenImporter.pomFileToMavenInfoMap[modulePath] ~= nil
+                    or MavenImporter.pomFileToErrorMap[modulePath] ~= nil
+                ) and utils.is_ignored(modulePath) == false then
+                    start_resolve_maven_info_pom_file_task(utils.Path(modulePath), refreshProjectInfo)
+                end
             end
         end
     end)
@@ -540,7 +573,9 @@ end
 
 ---@param pomFile string
 ---@param mavenInfo MavenInfo
-local function start_resolve_plugin_goals_task(pomFile, mavenInfo)
+---@param customTaskMgr Task_Mgr|nil
+local function start_resolve_plugin_goals_task(pomFile, mavenInfo, customTaskMgr)
+    local mgr = customTaskMgr or taskMgr
     local cmd = "help:describe "
 
     if mavenInfo.groupId ~= "" then
@@ -555,7 +590,7 @@ local function start_resolve_plugin_goals_task(pomFile, mavenInfo)
         cmd = cmd .. '"-Dversion=' .. mavenInfo.version .. '"'
     end
 
-    taskMgr:run(
+    mgr:run(
         mavenConfig.importer_pipe_cmd(pomFile, {
             cmd,
         }),
@@ -648,7 +683,8 @@ local function write_project_cache_file()
     local success, _ = utils.create_directories(path.str)
 
     if success then
-        local resFile = io.open(path:join("cache.json").str, "w")
+        local file_path = path:join("cache.json").str
+        local resFile, _ = io.open(file_path, "w")
 
         if resFile then
             local json
@@ -665,6 +701,10 @@ local function write_project_cache_file()
 
             if success then
                 resFile:write(json)
+            else
+                vim.schedule(function()
+                    vim.notify("Maven Tools Cache Write Failed: " .. tostring(json), vim.log.levels.ERROR)
+                end)
             end
 
             resFile:close()
@@ -679,6 +719,7 @@ local function update_java_files_properties(dir)
 
     local cmd
     local args = {}
+    local threads = tostring(config.indexingThreads or 2)
 
     if config.OS == "Windows" then
         cmd = "powershell.exe"
@@ -686,8 +727,15 @@ local function update_java_files_properties(dir)
         table.insert(args, "-NoProfile")
         table.insert(args, "-Command")
         table.insert(args, "rg")
+        table.insert(args, "-j")
+        table.insert(args, threads)
         table.insert(args, "--no-ignore")
-        table.insert(args, "--multiline")
+        table.insert(args, "-g")
+        table.insert(args, '"!target"')
+        table.insert(args, "-g")
+        table.insert(args, '"!.git"')
+        table.insert(args, "-g")
+        table.insert(args, '"!.nvim"')
         table.insert(args, "-e")
         table.insert(args, '"class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+"')
         table.insert(args, "-e")
@@ -704,7 +752,7 @@ local function update_java_files_properties(dir)
         table.insert(args, "-c")
         table.insert(
             args,
-            'rg --no-ignore --multiline -e "class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+" -e "static\\s+[^\\s]*\\s*void\\s+main\\s*\\(" -e "@Test" -e "import\\s+org\\.junit\\." -g "*.java" '
+            'rg -j ' .. threads .. ' --no-ignore -g "!target" -g "!.git" -g "!.nvim" -e "class\\s+[^\\s]+|interface\\s+[^\\s]+|enum\\s+[^\\s]+|@interface\\s+[^\\s]+" -e "static\\s+[^\\s]*\\s*void\\s+main\\s*\\(" -e "@Test" -e "import\\s+org\\.junit\\." -g "*.java" '
                 .. '"'
                 .. dir
                 .. '"'
@@ -749,10 +797,15 @@ local function update_java_files_properties(dir)
 end
 
 local function start_update_java_files_properties_task()
+    local started = false
     for dir, v in pairs(ScanDirs) do
         if v then
             update_java_files_properties(dir)
+            started = true
         end
+    end
+    if started then
+        update_callback()
     end
 end
 
@@ -796,7 +849,20 @@ local function idle_callback_init()
 
                     write_project_cache_file()
 
-                    vim.notify("Maven Tools Ready")
+                    vim.schedule(function()
+                        vim.notify("Maven Tools Ready")
+                    end)
+
+                    -- Run plugin description tasks in a completely non-blocking background queue
+                    vim.schedule(function()
+                        local bgTaskMgr = utils.Task_Mgr()
+                        for pluginInfoStr, pluginInfo in pairs(pendingPlugins) do
+                            if pluginInfo ~= nil then
+                                start_resolve_plugin_goals_task(pluginInfo.pomFile, pluginInfo.mavenInfo, bgTaskMgr)
+                                pendingPlugins[pluginInfoStr] = nil
+                            end
+                        end
+                    end)
                 end)
 
                 for _, pomFile in ipairs(resolve_pending_files) do
@@ -809,16 +875,6 @@ local function idle_callback_init()
                 end
             end
         end)
-
-        local pluginTasks = 0
-
-        for pluginInfoStr, pluginInfo in pairs(pendingPlugins) do
-            if pluginInfo ~= nil then
-                pluginTasks = pluginTasks + 1
-                start_resolve_plugin_goals_task(pluginInfo.pomFile, pluginInfo.mavenInfo)
-                pendingPlugins[pluginInfoStr] = nil
-            end
-        end
 
         if taskMgr:idle() then
             taskMgr:trigger_idle_callback()
@@ -879,12 +935,14 @@ local function remove_project(pomFile)
         local parents = MavenImporter.pomFileIsModuleSet[module]
         MavenImporter.pomFileIsModuleSet[module] = nil
 
-        for info, _ in pairs(parents) do
-            if info ~= projectInfoStr then
-                if MavenImporter.pomFileIsModuleSet[module] == nil then
-                    MavenImporter.pomFileIsModuleSet[module] = { [info] = true }
-                else
-                    MavenImporter.pomFileIsModuleSet[module][info] = true
+        if parents ~= nil then
+            for info, _ in pairs(parents) do
+                if info ~= projectInfoStr then
+                    if MavenImporter.pomFileIsModuleSet[module] == nil then
+                        MavenImporter.pomFileIsModuleSet[module] = { [info] = true }
+                    else
+                        MavenImporter.pomFileIsModuleSet[module][info] = true
+                    end
                 end
             end
         end

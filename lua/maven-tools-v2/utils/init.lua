@@ -262,6 +262,10 @@ end
 ---@param path string
 ---@return boolean
 MavenToolsUtils.create_directories = function(path)
+    local stat = vim.uv.fs_stat(path)
+    if stat and stat.type == "directory" then
+        return true
+    end
     local success, _ = pcall(vim.fn.mkdir, path, "p")
     return success
 end
@@ -536,7 +540,7 @@ MavenToolsUtils.find_pom_files = function(directory)
 
     search_pom_files(directory)
 
-    if config.multiproject or pom_files:size() > 0 then
+    if config.recursivePomSearch and (config.multiproject or pom_files:size() > 0) then
         ---@type Path?
         local next_dir = dirs:pop()
 
