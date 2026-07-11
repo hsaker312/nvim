@@ -103,8 +103,8 @@ MavenToolsMavenConfig.importerVmOptions = {}
 MavenToolsMavenConfig.runnerVmOptions = {}
 
 local function get_maven_executable(pom_file)
-    if MavenToolsMavenConfig.preferMavenWrapper then
-        local start_path = (pom_file and pom_file ~= "") and vim.fs.dirname(pom_file) or vim.uv.cwd()
+    if MavenToolsMavenConfig.preferMavenWrapper and pom_file and pom_file ~= "" then
+        local start_path = vim.fs.dirname(pom_file)
         local wrapper_name = config.OS == "Windows" and "mvnw.cmd" or "mvnw"
         local wrapper_matches = vim.fs.find({ wrapper_name }, {
             path = start_path,

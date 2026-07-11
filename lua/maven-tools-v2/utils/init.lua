@@ -309,6 +309,11 @@ function MavenToolsUtils.Path(path)
     path = vim.fs.normalize(path)
 
     obj.str = path:gsub("\\", "/")
+    if config.OS == "Windows" then
+        obj.str = obj.str:gsub("^(%a):", function(drive)
+            return drive:lower() .. ":"
+        end)
+    end
     obj.len = #obj.str
     if obj.str:sub(obj.len, obj.len) == "/" then
         obj.str = obj.str:sub(1, obj.len - 1)
