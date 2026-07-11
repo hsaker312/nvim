@@ -162,4 +162,15 @@ function MavenToolsRunner.run(entry, pom_file, reset_callback, append_callback)
     vim.uv.read_start(stderr, process_data)
 end
 
+function MavenToolsRunner.terminate()
+    if runnerHandle ~= nil and not runnerHandle:is_closing() then
+        success = false
+        runTotalTime = ""
+        running = false
+        runnerHandle:kill("sigterm")
+        return true
+    end
+    return false
+end
+
 return MavenToolsRunner

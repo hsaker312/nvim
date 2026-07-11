@@ -128,6 +128,18 @@ function MavenTools.setup(opts)
     )
     vim.api.nvim_create_user_command("MavenToolsRun", 'lua require("maven-tools-v2.ui.main").run(0)', {})
     vim.api.nvim_create_user_command(
+        "MavenToolsStop",
+        function()
+            local stopped = require("maven-tools-v2.maven.runner").terminate()
+            if stopped then
+                vim.notify("Maven goal execution stopped!", vim.log.levels.WARN)
+            else
+                vim.notify("No maven goal is currently running.", vim.log.levels.INFO)
+            end
+        end,
+        {}
+    )
+    vim.api.nvim_create_user_command(
         "MavenToolsAddLocalDependency",
         'lua require("maven-tools-v2.ui.main").add_local_dependency(0)',
         {}
