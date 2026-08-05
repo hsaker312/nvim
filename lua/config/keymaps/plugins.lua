@@ -157,4 +157,27 @@ vim.keymap.set("n", "gs", "<Cmd>ISwap<CR>", { noremap = true, silent = true, des
 
 vim.keymap.set("i", "<C-l>", function()
     require("tabnine.completion").accept()
-end)
+end, { desc = "Accept Tabnine Completion" })
+
+vim.keymap.set("v", "<leader>ac", function()
+    local file_path = vim.fn.expand("%:p")
+    local lnum = vim.fn.line("v")
+    local lnum_end = vim.fn.line("V")
+    local col = vim.fn.col(".")
+
+    local info = string.format(
+        [[{
+  "file": "%s",
+  "line_range": "%d:%d",
+  "column": %d
+}]],
+        file_path,
+        lnum,
+        lnum_end,
+        col,
+        selection
+    )
+
+    vim.fn.setreg("+", info)
+    vim.notify("Context written to clipboard", vim.log.levels.INFO)
+end, { noremap = true, silent = true, desc = "Copy Context to Clipboard" })

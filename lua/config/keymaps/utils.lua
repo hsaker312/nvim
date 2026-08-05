@@ -123,7 +123,7 @@ local goto_to_link = function(mouse)
     end, 100)
 end
 
-vim.keymap.set({ "i", "v", "n" }, "<C-Del>", "<esc>")
+vim.keymap.set({ "i", "v", "n" }, "<C-Del>", "<esc>", { noremap = true, silent = true, desc = "Delete Key" })
 
 vim.keymap.set("n", "<MiddleMouse>", function()
     goto_to_link(true)
@@ -138,10 +138,10 @@ vim.keymap.set("v", "<leader><cr>", function()
 end, { noremap = true, silent = true, desc = "Open Link" })
 
 vim.keymap.set("n", "]>", "va<<esc>", { noremap = true, silent = true, desc = "Next <" })
-vim.keymap.set("n", "[<", "va<o<esc>", { noremap = true, silent = true, desc = "Perv <" })
+vim.keymap.set("n", "[<", "va<o<esc>", { noremap = true, silent = true, desc = "Prev <" })
 
 vim.keymap.set("n", "]'", "va'<esc>", { noremap = true, silent = true, desc = "Next '" })
-vim.keymap.set("n", "['", "va'o<esc>", { noremap = true, silent = true, desc = "Perv '" })
+vim.keymap.set("n", "['", "va'o<esc>", { noremap = true, silent = true, desc = "Prev '" })
 
 vim.keymap.set("n", "]]", function()
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("vie<esc>l<esc>", true, true, true), "", true)
@@ -186,7 +186,7 @@ vim.keymap.set("n", "[a", function()
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<left>", true, true, true), "", true)
         end
     end, 10)
-end, { noremap = true, silent = true, desc = "perv Argument" })
+end, { noremap = true, silent = true, desc = "Prev Argument" })
 
 vim.keymap.set("n", ']"', 'va"<esc>', { noremap = true, silent = true, desc = 'Next "' })
 vim.keymap.set("n", '["', 'va"o<esc>', { noremap = true, silent = true, desc = 'Perv "' })
@@ -227,9 +227,9 @@ vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv", { noremap = true, silent = true
 
 vim.keymap.set({ "n", "i", "v" }, "<C-z>", "<cmd>undo<CR>", { noremap = true, silent = true, desc = "Undo" })
 vim.keymap.set({ "n", "v", "i" }, "<C-r>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
-vim.keymap.set({ "n", "v", "i" }, "<C-y>", function()
+vim.keymap.set("i", "<C-y>", function()
     print("use C-r")
-end, { noremap = true, silent = true, desc = "Redo" })
+end, { noremap = true, silent = true, desc = "Redo (fallback)" })
 -- vim.keymap.set("i", "<C-r>", "<cmd>redo<CR>", { noremap = true, silent = true, desc = "Redo" })
 
 vim.keymap.set("n", "<S-right>", "v<right>", { noremap = true, silent = true, desc = "Select Text" })
@@ -275,7 +275,7 @@ vim.keymap.set("v", "<C-a>", function()
 
         select_all_old_cursor = nil
     end
-end, { noremap = true, silent = true, desc = "Multi-Cursor Mode" })
+end, { noremap = true, silent = true, desc = "Restore Cursor Position" })
 
 vim.keymap.set("n", "<leader>qa", "<cmd>qa<cr>", { noremap = true, silent = true, desc = "Quit All" })
 vim.keymap.set("n", "<leader>qq", "<cmd>q<cr>", { noremap = true, silent = true, desc = "Quit" })
