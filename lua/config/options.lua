@@ -10,6 +10,8 @@ vim.fn.sign_define("DiagnosticSignHint", { text = "󰌵", texthl = "DiagnosticSi
 vim.g.loaded_netrwPlugin = 1
 vim.g.loaded_netrw = 1
 
+vim.o.autoread = true
+
 vim.g.snacks_scroll = false
 vim.g.snacks_animate = false
 
@@ -34,4 +36,5 @@ vim.g.clipboard = {
 
 vim.diagnostic.config({
     virtual_text = false,
-})
+}
+
