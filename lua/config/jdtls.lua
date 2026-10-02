@@ -249,8 +249,6 @@ local function get_root()
 
         if json.maven ~= nil then
             maven = json.maven
-            maven.userSettings = maven.userSettings
-            maven.localRepository = maven.localRepository
         end
 
         if json.dap ~= nil then
@@ -521,7 +519,10 @@ local function setup_jdtls()
                 downloadSource = true,
             },
             -- Enable downloading archives from maven automatically
-            maven = maven,
+            maven = {
+                downloadSources = maven.downloadSources,
+                updateSnapshots = false,
+            },
             -- Enable method signature help
             signatureHelp = {
                 enabled = true,
@@ -596,6 +597,10 @@ local function setup_jdtls()
             configuration = {
                 updateBuildConfiguration = "interactive",
                 runtimes = runtimes,
+                maven = {
+                    userSettings = maven.userSettings,
+                    defaultMojoExecutionAction = "ignore",
+                },
             },
             references = {
                 includeDecompiledSources = true,
